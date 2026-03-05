@@ -1,0 +1,57 @@
+# Environment variables
+.env
+.env.local
+.env.production
+.env.development
+*.env
+
+# Credentials
+credentials.json
+secrets/
+keys/
+*.pem
+*.key
+*.cert
+
+# n8n specific
+.n8n/
+workflows-backup/
+exports/
+
+# Backups con datos reales
+backups/
+dumps/
+*.sql
+*.dump
+
+# Logs con información sensible
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Testing data real
+test-data/
+mock-conversations/
+real-client-data/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# Node
+node_modules/
+package-lock.json
+
+# Temporal
+tmp/
+temp/
+*.tmp
