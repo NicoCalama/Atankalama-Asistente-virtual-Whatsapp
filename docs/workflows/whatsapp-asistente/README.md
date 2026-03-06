@@ -2,7 +2,7 @@
 
 **Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
 **Estado**: 🟢 Activo desde Febrero 2026
-**Última actualización**: 5 de Marzo 2026
+**Ultima auditoria**: 6 de Marzo 2026
 
 ---
 
@@ -32,16 +32,20 @@ Automatizar la atención al cliente por WhatsApp para:
 - **PostgreSQL**: Base de datos para memoria conversacional
 
 ### Inteligencia Artificial
-- **OpenAI GPT-4.1-mini**: Generación de respuestas conversacionales
-- **OpenAI Whisper**: Transcripción de mensajes de voz
-- **Supabase Vector DB**: Almacenamiento de embeddings para RAG
+- **OpenAI GPT-4.1**: Generacion de respuestas conversacionales (agente)
+- **OpenAI Whisper**: Transcripcion de mensajes de voz
+- **Supabase Vector DB**: Knowledge base RAG (migracion pendiente)
+
+### Acumulacion de Mensajes
+- **Redis**: Acumula mensajes enviados en rafaga (ventana de 12 segundos)
 
 ### CRM y Almacenamiento
-- **Airtable**: CRM para gestión de leads y clientes
-- **Google Drive**: Almacenamiento de audios de voz
+- **Airtable**: CRM para gestion de leads y contactos
+- **Google Sheets**: Registro de preguntas sin respuesta
 
-### Notificaciones
-- **Telegram**: Alertas al equipo (migración a Slack planificada)
+### Notificaciones y Escalacion
+- **Gmail**: Escalacion a humano (B2B, alertas de seguridad, solicitudes)
+- **Gmail**: Notificacion de errores de Chatwoot
 
 ---
 
@@ -136,8 +140,8 @@ Si se detecta:
 
 ## 📊 Arquitectura de Nodos
 
-**Total de nodos**: 19
-**Documentación detallada**: Ver [ARCHITECTURE.md](ARCHITECTURE.md)
+**Total de nodos**: 40 (verificado 2026-03-06)
+**Documentacion detallada**: Ver [ARCHITECTURE.md](ARCHITECTURE.md)
 
 ### Nodos Principales
 - Webhook receivers (Chatwoot)
@@ -155,8 +159,14 @@ Si se detecta:
 Ver archivo completo: [ISSUES.md](ISSUES.md)
 
 ### Activos
-1. **Prompt suena robótico** (Prioridad: Media-Alta)
-2. **Procesamiento de mensajes puede mejorar** (Prioridad: Media)
+1. **Agente no sigue protocolo de fases** — no llama herramientas antes de responder (Prioridad: Alta) → Issue #009
+2. **Prompt suena robotico** — exceso de reglas en mayusculas, pierde naturalidad (Prioridad: Alta) → Issue #001
+3. **Migracion Supabase urgente** — Supabase elimina la DB gratuita (Prioridad: Alta) → Issue #010
+
+### Resueltos en auditoria 2026-03-06
+- ✅ Acumulacion Redis: funciona correctamente
+- ✅ Linea de voz: tecnicamente OK (Switch, descarga, Whisper)
+- ✅ Filtros Chatwoot: correctos
 
 ---
 
@@ -164,7 +174,7 @@ Ver archivo completo: [ISSUES.md](ISSUES.md)
 
 Ver archivo completo: [CHANGELOG.md](CHANGELOG.md)
 
-**Versión actual**: v1.2.0 (Marzo 2026)
+**Version actual**: v1.3.0 (Marzo 2026)
 
 ---
 
@@ -191,14 +201,14 @@ Ver archivo completo: [CHANGELOG.md](CHANGELOG.md)
 ## 🚀 Próximas Mejoras
 
 ### En Desarrollo
-- 🔄 Rediseño de prompt (más natural y conversacional)
-- 🔄 Optimización de procesamiento de mensajes
-- 🔄 Análisis técnico de arquitectura
+- 🔄 Rediseno de prompt con metodologia 5 pasos (proxima sesion)
+- 🔄 Migracion Supabase → Google Sheets (urgente)
+- 🔄 Mejora del email de escalacion humana
 
 ### Planificado
-- ⏳ Migración de notificaciones a Slack
-- ⏳ Ampliación de base de conocimiento
-- ⏳ Métricas y analytics
+- ⏳ Migracion notificaciones a Slack (pendiente aprobacion)
+- ⏳ Ampliacion de base de conocimiento
+- ⏳ Metricas y analytics
 - ⏳ A/B testing de prompts
 
 ---

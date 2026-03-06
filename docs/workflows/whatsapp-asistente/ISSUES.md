@@ -6,6 +6,66 @@ Registro de problemas conocidos, bugs y mejoras planificadas del workflow.
 
 ## 🔴 Problemas Activos
 
+### #009 - Agente no sigue protocolo de fases
+
+**Prioridad**: 🔴 Alta
+**Estado**: 🔍 Confirmado con datos reales
+**Reportado**: 6 de Marzo 2026
+**Asignado a**: Claude AI + NicoCalama
+
+#### Descripcion
+El agente IA no ejecuta las herramientas en el orden que el prompt exige. Confirmado con test real de mensaje de voz (ejecucion #1233).
+
+#### Comportamiento esperado (segun prompt)
+1. Ejecutar Consultar_contactos (Fase 1 SIEMPRE primero)
+2. Consultar Base_de_datos antes de responder preguntas
+3. Ejecutar reporte_preguntas_sin_respuesta si no tiene respuesta
+4. Solo despues responder al cliente
+
+#### Comportamiento observado
+- Respondio directamente sin llamar ninguna herramienta
+- Dijo "No dispongo de esa informacion" sin consultar Base_de_datos
+- No ejecuto reporte_preguntas_sin_respuesta como exige el prompt
+- No ejecuto Consultar_contactos (Fase 1)
+
+#### Causa raiz probable
+El prompt actual es demasiado largo (~800 tokens solo de instrucciones) con demasiadas reglas en MAYUSCULAS y "ESTRICTAMENTE PROHIBIDO". El modelo procesa el texto pero no ejecuta las acciones tool-call de forma consistente. Prompt de reglas vs prompt de comportamiento.
+
+#### Plan de accion
+- [ ] Rediseno completo del prompt con metodologia de 5 pasos
+- [ ] Reducir longitud y simplificar estructura
+- [ ] Reemplazar prohibiciones en mayusculas por instrucciones positivas
+- [ ] Testing A/B con prompt nuevo
+
+---
+
+### #010 - Migracion Supabase Vector Store
+
+**Prioridad**: 🔴 Alta
+**Estado**: 🚧 Urgente (Supabase eliminara la base de datos)
+**Reportado**: 6 de Marzo 2026
+
+#### Descripcion
+Supabase notificó que eliminará la base de datos gratuita. La knowledge base del hotel (RAG) vive ahí. Necesita migración urgente.
+
+#### Opciones evaluadas
+- **Google Sheets**: Simple, sin busqueda vectorial, pero suficiente para FAQ de hotel
+- **Pinecone free tier**: Vector search, mas complejo de configurar
+- **n8n Simple Store**: Sin dependencia externa, muy limitado
+- **Excel/Sheets + busqueda texto**: Mas sencillo, apropiado para volumen actual
+
+#### Recomendacion
+Para el volumen de una FAQ hotelera, Google Sheets con busqueda por texto es suficiente y elimina una dependencia externa compleja.
+
+#### Plan de accion
+- [ ] Exportar contenido actual de Supabase
+- [ ] Crear Google Sheet con knowledge base
+- [ ] Reemplazar nodo Supabase Vector Store por Google Sheets Tool
+- [ ] Actualizar prompt para instrucciones de busqueda
+- [ ] Testing de calidad de respuestas
+
+---
+
 ### #001 - Prompt suena robótico y poco natural
 
 **Prioridad**: 🟡 Media-Alta
@@ -60,11 +120,21 @@ Tres propuestas de mejora:
 ### #002 - Procesamiento de mensajes puede optimizarse
 
 **Prioridad**: 🟡 Media
-**Estado**: 🔍 En análisis
+**Estado**: ✅ Resuelto (confirmado funcionando el 6 de Marzo 2026)
 **Reportado**: 4 de Marzo 2026
 **Asignado a**: Claude AI + NicoCalama
 
-#### Descripción
+#### Confirmacion 2026-03-06
+Test con datos reales (ejecucion #1229) confirmo:
+- Redis push/get funciona correctamente — devuelve array de mensajes
+- Acumulacion de multiples mensajes funciona: se juntan y pasan al agente como un solo texto
+- Switch4 logica correcta: Esperar → Espera 12s → procesar, Continuamos → procesar directo
+- Linea de voz tecnicamente OK: Switch detecta, descarga, Whisper transcribe (test #1233)
+- Ejecuciones 0s son eventos Chatwoot filtrados, no mensajes perdidos
+
+El problema de procesamiento era una suposicion incorrecta. El flujo funciona.
+
+#### Descripción original
 El flujo actual de procesamiento de mensajes (texto y voz) puede tener puntos de optimización en términos de velocidad, manejo de errores y eficiencia de recursos.
 
 #### Áreas Identificadas

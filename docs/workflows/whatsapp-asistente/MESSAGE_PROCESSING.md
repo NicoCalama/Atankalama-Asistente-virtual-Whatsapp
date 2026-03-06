@@ -1,13 +1,44 @@
 # ⚙️ Análisis de Procesamiento de Mensajes - WhatsApp Asistente
 
-**Issue relacionado**: [#002 - Procesamiento de mensajes puede optimizarse](ISSUES.md#002---procesamiento-de-mensajes-puede-optimizarse)
+**Issue relacionado**: [#002 - Procesamiento de mensajes](ISSUES.md)
 **Prioridad**: 🟡 Media
-**Estado**: 🔍 En análisis - Requiere feedback de Nico
-**Última actualización**: 5 de Marzo 2026
+**Estado**: ✅ RESUELTO - Verificado con datos reales el 6 de Marzo 2026
 
 ---
 
-## 🎯 Objetivo
+## ✅ Confirmaciones del 6 de Marzo 2026
+
+Tests con datos reales (ejecuciones #1229, #1232, #1233) confirmaron:
+
+### Acumulacion de mensajes (Redis)
+- **Redis push**: Almacena cada mensaje como JSON `{message, sessionID, date_time}` en lista por numero de telefono
+- **Redis get**: Devuelve el array completo correctamente en n8n (no era bug)
+- **Switch4**: Logica correcta — si el ultimo mensaje tiene < 12s → espera, si > 12s → procesa
+- **Resultado real**: Multiples mensajes enviados en rafaga se acumulan y el agente recibe el texto combinado:
+  ```
+  "Hola! Quisiera mas informacion sobre habitaciones.
+  Una sola persona"
+  ```
+
+### Linea de voz
+- **Switch**: Detecta audio correctamente via `body.conversation.messages[0].attachments[0]?.file_type`
+- **descargar audio**: Funciona (usa `body.attachments[0].data_url`)
+- **Whisper**: Transcripcion correcta y rapida (~5s para audio corto)
+- **Edit Fields2**: Normaliza correctamente a campo `mensaje`
+- **La voz NO pasa por Redis**: Se procesa inmediatamente al llegar, sin acumulacion
+
+### Ejecuciones 0s
+- No son mensajes perdidos
+- Son eventos de Chatwoot (status updates, outgoing) filtrados correctamente por el nodo `If`
+
+### Tiempos reales
+- Texto (con acumulacion 12s): ~24s total
+- Voz: ~22s total (Whisper + agente)
+- Eventos filtrados: ~0s
+
+---
+
+## 🎯 Objetivo original
 
 Analizar el flujo actual de procesamiento de mensajes (texto y voz) para identificar:
 - Cuellos de botella en performance

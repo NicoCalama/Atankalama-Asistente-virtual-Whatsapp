@@ -7,6 +7,43 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.3.0] - 2026-03-06
+
+### Auditoria Tecnica Completa
+
+#### Hallazgos confirmados (5 tests con datos reales)
+
+**Arquitectura real corregida**
+- Total de nodos: 40 (documentacion anterior indicaba 19, estaba desactualizada)
+- Stack actualizado: Redis (acumulacion), Gmail Tool (escalacion humana), Google Sheets Tool (preguntas sin respuesta)
+- Supabase Vector Store sigue activo (migracion a Excel pendiente)
+
+**Componentes verificados como OK**
+- Filtros Chatwoot: funcionan correctamente (If + etiqueta "humano" + Filter)
+- Acumulacion Redis: funciona correctamente — push a lista + get devuelve array — multiples mensajes se acumulan y se pasan juntos al agente
+- Linea de voz (tecnica): Switch detecta audio, descarga funciona, Whisper transcribe correctamente (test real: 5s audio)
+- Ejecuciones 0s: son eventos de Chatwoot correctamente filtrados (no mensajes perdidos)
+
+**Problema critico identificado: Agente no sigue protocolo**
+- El agente no ejecuta Fase 1 (Consultar contactos) antes de responder
+- En test de voz: respondio directamente sin llamar ninguna herramienta
+- No consulto Base de datos antes de decir "no dispongo de esa informacion"
+- No ejecuto reporte_preguntas_sin_respuesta como exige el prompt
+- Causa raiz: prompt demasiado extenso y prescriptivo → modelo lo ignora parcialmente
+
+#### Pendiente de implementacion
+- Rediseno del prompt (metodologia 5 pasos — proxima sesion)
+- Migracion Supabase → alternativa (Supabase eliminara la DB)
+- Mejora del email de escalacion humana
+
+### Infraestructura
+- Repositorio GitHub configurado con remote origin
+- Workflow JSON exportado y versionado (punto de recuperacion)
+- MCP configurado para Claude Code (.mcp.json)
+- n8n-skills clonado localmente
+
+---
+
 ## [1.2.0] - 2026-03-05
 
 ### 📚 Documentación

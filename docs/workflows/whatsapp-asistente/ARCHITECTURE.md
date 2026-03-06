@@ -3,100 +3,81 @@
 Documentación técnica detallada de la arquitectura, nodos y flujo de datos del workflow.
 
 **Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
-**Total de Nodos**: 19
-**Última actualización**: 5 de Marzo 2026
+**Total de Nodos**: 40 (documentacion anterior de 19 nodos estaba desactualizada)
+**Ultima auditoria**: 6 de Marzo 2026 — arquitectura verificada contra n8n real
 
 ---
 
-## 📊 Diagrama de Arquitectura General
+## 📊 Diagrama de Arquitectura Real (verificado 2026-03-06)
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        CLIENTE (WhatsApp)                        │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                          CHATWOOT                                │
-│                    (WhatsApp Business API)                       │
-└────────────────────────────┬────────────────────────────────────┘
-                             │
-                             │ Webhook
-                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                           N8N WORKFLOW                           │
-│                                                                   │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  1. RECEPCIÓN Y VALIDACIÓN                                │  │
-│  │     • Webhook Receiver                                    │  │
-│  │     • Validación de origen                                │  │
-│  │     • Extracción de datos del contacto                    │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  2. CLASIFICACIÓN DE TIPO DE MENSAJE                      │  │
-│  │     • ¿Es texto o voz?                                    │  │
-│  │     • Switch Node                                         │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│              │                              │                    │
-│              ▼ (texto)                      ▼ (voz)              │
-│  ┌──────────────────────┐     ┌──────────────────────────────┐  │
-│  │ Procesar directamente│     │  3. PROCESAMIENTO DE VOZ     │  │
-│  └──────────────────────┘     │     • Descargar audio        │  │
-│              │                │     • OpenAI Whisper API     │  │
-│              │                │     • Transcripción          │  │
-│              │                │     • Guardar en Drive       │  │
-│              │                └──────────────────────────────┘  │
-│              │                              │                    │
-│              └──────────────┬───────────────┘                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  4. CONSTRUCCIÓN DE CONTEXTO                              │  │
-│  │     • Consulta PostgreSQL (historial)                     │  │
-│  │     • Búsqueda Supabase Vector DB (RAG)                   │  │
-│  │     • Clasificación tipo cliente (Turista/Empresa)        │  │
-│  │     • Identificación de intención                         │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  5. GENERACIÓN DE RESPUESTA                               │  │
-│  │     • OpenAI GPT-4.1-mini                                 │  │
-│  │     • Prompt + Contexto + Historial + RAG                 │  │
-│  │     • Validación de respuesta                             │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  6. RESPUESTA AL CLIENTE                                  │  │
-│  │     • HTTP Request a Chatwoot API                         │  │
-│  │     • Envío de mensaje                                    │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  7. POST-PROCESAMIENTO                                    │  │
-│  │     • Guardar conversación en PostgreSQL                  │  │
-│  │     • Actualizar Airtable CRM                             │  │
-│  │     • Detectar oportunidades comerciales                  │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                             │                                    │
-│                             ▼                                    │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │  8. NOTIFICACIONES (condicionales)                        │  │
-│  │     • Telegram (equipo comercial)                         │  │
-│  │     • Triggers: Reservas, Leads, Voz transcrita           │  │
-│  └───────────────────────────────────────────────────────────┘  │
-│                                                                   │
-└─────────────────────────────────────────────────────────────────┘
-           │                    │                    │
-           ▼                    ▼                    ▼
-    ┌───────────┐      ┌──────────────┐    ┌─────────────┐
-    │  Airtable │      │  PostgreSQL  │    │   Telegram  │
-    │    CRM    │      │   (Memoria)  │    │(Notificación)│
-    └───────────┘      └──────────────┘    └─────────────┘
+CLIENTE (WhatsApp)
+       │
+       ▼
+  CHATWOOT ──webhook──▶ Webhook (n8n)
+                              │
+                         If (filtro)
+                    message_created + Contact + incoming
+                              │ TRUE
+                    CHATWOOT Obtener Etiqueta
+                              │
+                         Filter
+                    (excluye etiqueta "humano")
+                              │
+                        Edit Fields
+                    (extrae: telefono, mensaje, tipo, ID Chatwoot)
+                              │
+                          Switch
+                    ┌─────────┴──────────┐
+               Audio│                    │texto (fallback)
+                    ▼                    ▼
+           descargar audio         Redis (push)
+                    │            mensaje a lista por telefono
+          Transcribe (Whisper)          │
+                    │             Espera 12s
+             Edit Fields2               │
+            (texto transcrito)    Redis6 (get lista)
+                    │                   │
+                    └──────┬────────────┘
+                           │
+                        Merge1
+                           │
+                        Switch4
+               ┌───────────┼──────────────┐
+          Ignoran      Esperar         Continuamos
+          (otro           │                │
+         session)    Espera 12s      Redis7 (delete)
+                          │                │
+                          └────────────────┘
+                                 │
+                           Edit Fields6
+                         (join mensajes acumulados)
+                                 │
+                            Agente IA
+                    ┌────────────┼────────────────┐
+              Herramientas del agente:
+              • Think (razonamiento)
+              • Consultar contactos (Airtable)
+              • Crear/Actualizar contacto (Airtable)
+              • Base de datos (Supabase Vector Store)
+              • Contactar Humano (Gmail)
+              • reporte preguntas sin respuesta (Google Sheets)
+              • registrar_feedback_encuesta (Airtable)
+              • Calculator
+                                 │
+                        HTTP Request
+                    (envia respuesta a Chatwoot)
+                                 │
+                    ┌────────────┴────────────┐
+               error chatwoot?          mensaje OK
+                    │
+              Gmail (error)
 ```
+
+**Memoria del agente**: Postgres Chat Memory (historial de conversacion)
+**Modelo LLM**: OpenAI Chat Model (GPT-4.1)
+
+**Nota**: La linea de voz NO pasa por Redis — se procesa inmediatamente al llegar.
 
 ---
 
