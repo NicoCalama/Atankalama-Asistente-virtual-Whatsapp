@@ -113,11 +113,16 @@ Análisis de competencia y tendencias
 
 ### MCP (Model Context Protocol)
 **Repositorio**: [czlonkowski/n8n-mcp](https://github.com/czlonkowski/n8n-mcp)
+**Estado**: Operativo - 1236 nodos, 20 herramientas
+**Config**: `.mcp.json` (local, gitignored)
 
-Acceso directo a documentación de 525+ nodos n8n con herramientas de:
+Acceso directo a la instancia n8n con herramientas de:
+- Búsqueda de nodos (1236 disponibles)
 - Validación de workflows
-- Búsqueda de nodos
-- Gestión y deployment
+- Gestión y deployment en tiempo real
+- Rollback de versiones
+
+📖 **Setup completo**: [docs/MCP_SETUP.md](docs/MCP_SETUP.md)
 
 ### Skills de Claude Code
 **Repositorio**: [czlonkowski/n8n-skills](https://github.com/czlonkowski/n8n-skills)
