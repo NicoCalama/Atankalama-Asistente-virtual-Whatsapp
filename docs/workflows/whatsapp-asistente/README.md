@@ -1,222 +1,132 @@
-# 📱 Atankalama Asistente Virtual WhatsApp
+# Atankalama Asistente Virtual WhatsApp
 
-**Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
-**Estado**: 🟢 Activo desde Febrero 2026
-**Ultima auditoria**: 6 de Marzo 2026
-
----
-
-## 📋 Descripción General
-
-Asistente virtual de IA que atiende automáticamente consultas de clientes a través de WhatsApp 24/7. Integrado con Chatwoot como frontend de mensajería, utiliza GPT-4.1-mini para generar respuestas personalizadas basadas en el contexto del hotel, el historial de conversaciones y una base de conocimiento vectorizada.
+**Versión actual**: v1.4.1
+**Estado**: Activo en producción
+**Última verificación**: 7 de Marzo 2026
+**Workflow ID en n8n**: `s9A9Al67_R0wSQWf_HY3X`
 
 ---
 
-## 🎯 Objetivo
+## ¿Qué es esto?
 
-Automatizar la atención al cliente por WhatsApp para:
-- Responder consultas frecuentes instantáneamente
-- Clasificar leads (Turistas vs Empresas)
-- Capturar información de contacto en CRM
-- Gestionar solicitudes de reservas y cotizaciones
-- Notificar al equipo sobre oportunidades comerciales
+Un asistente virtual con IA que atiende automáticamente a los clientes del Hotel Atankalama por WhatsApp, las 24 horas. El cliente escribe (o manda un audio) y el bot responde en segundos usando información real del hotel, historial de la conversación y el CRM.
+
+Cuando el bot no puede ayudar, escala automáticamente a un humano del equipo.
+
+---
+
+## ¿Qué puede hacer?
+
+- Responder preguntas sobre el hotel (habitaciones, servicios, actividades, zona)
 - Transcribir y responder mensajes de voz
+- Dar links de reserva con la moneda correcta según el país del cliente
+- Registrar y actualizar contactos en el CRM (Airtable)
+- Registrar preguntas que no supo responder (para mejorar la base de conocimiento)
+- Pedir feedback al cerrar una conversación
+- Derivar a un agente humano cuando el cliente lo pide o cuando hay una alerta de seguridad
 
 ---
 
-## 🏗️ Stack Técnico
+## Stack técnico
 
-### Infraestructura
-- **n8n**: Motor de automatización (self-hosted)
-- **Chatwoot**: Frontend de WhatsApp y gestión de conversaciones
-- **PostgreSQL**: Base de datos para memoria conversacional
-
-### Inteligencia Artificial
-- **OpenAI GPT-4.1**: Generacion de respuestas conversacionales (agente)
-- **OpenAI Whisper**: Transcripcion de mensajes de voz
-- **Supabase Vector DB**: Knowledge base RAG (migracion pendiente)
-
-### Acumulacion de Mensajes
-- **Redis**: Acumula mensajes enviados en rafaga (ventana de 12 segundos)
-
-### CRM y Almacenamiento
-- **Airtable**: CRM para gestion de leads y contactos
-- **Google Sheets**: Registro de preguntas sin respuesta
-
-### Notificaciones y Escalacion
-- **Gmail**: Escalacion a humano (B2B, alertas de seguridad, solicitudes)
-- **Gmail**: Notificacion de errores de Chatwoot
+| Componente | Tecnología |
+|---|---|
+| Motor de automatización | n8n (self-hosted) |
+| Frontend WhatsApp | Chatwoot |
+| Agente de IA | OpenAI GPT-4.1 |
+| Transcripción de voz | OpenAI Whisper |
+| Base de conocimiento | Supabase Vector Store |
+| Memoria conversacional | PostgreSQL |
+| CRM | Airtable |
+| Acumulación de mensajes | Redis |
+| Preguntas sin respuesta | Google Sheets |
+| Escalación humana | Gmail |
 
 ---
 
-## 🔄 Flujo de Conversación
+## Cómo funciona (flujo simplificado)
 
-### Fase 1: Recepción del Mensaje
-1. Cliente envía mensaje por WhatsApp
-2. Chatwoot recibe el mensaje y dispara webhook a n8n
-3. n8n valida el origen y extrae información del contacto
+```
+Cliente envía mensaje por WhatsApp
+        |
+        v
+Chatwoot lo recibe y notifica a n8n
+        |
+        v
+n8n valida que es un mensaje real (no un evento del sistema)
+n8n verifica que la conversación no esté marcada como "humano"
+        |
+        |-- Si es AUDIO --> Descarga y transcribe con Whisper
+        |-- Si es TEXTO --> Acumula en Redis por 4 segundos
+        |                  (por si el cliente manda varios mensajes seguidos)
+        v
+Agente IA recibe el mensaje
+        |
+        +--> Llama "Consultar contactos" para saber si el cliente existe en CRM
+        +--> Llama "Base de datos" si hay preguntas sobre el hotel
+        +--> Llama "Crear/Actualizar contacto" si hay datos nuevos
+        +--> Llama "Contactar Humano" si el cliente lo pide
+        |
+        v
+Respuesta enviada de vuelta al cliente via Chatwoot
+```
 
-### Fase 2: Procesamiento de Entrada
-- **Mensajes de texto**: Se procesan directamente
-- **Mensajes de voz**:
-  - Se descarga el audio
-  - Se transcribe con Whisper
-  - Se guarda en Google Drive
-  - Se continúa con el texto transcrito
-
-### Fase 3: Construcción de Contexto
-1. Recupera historial de conversación (últimos 10 mensajes)
-2. Busca información relevante en base de conocimiento vectorizada
-3. Clasifica tipo de cliente (Turista/Empresa)
-4. Identifica intención del mensaje
-
-### Fase 4: Generación de Respuesta
-1. Envía contexto completo + prompt al GPT-4.1-mini
-2. IA genera respuesta personalizada
-3. Sistema valida coherencia y formato
-
-### Fase 5: Acciones Post-Respuesta
-- Guarda conversación en memoria PostgreSQL
-- Actualiza información del contacto en Airtable
-- Detecta oportunidades comerciales
-
-### Fase 6: Notificaciones
-Si se detecta:
-- Solicitud de reserva → Notifica al equipo comercial
-- Lead calificado → Registra en CRM
-- Información de contacto nueva → Actualiza base de datos
+**Tiempo de respuesta típico**: 5-15 segundos
 
 ---
 
-## ✨ Características Actuales
+## Comportamiento del agente
 
-### Capacidades del Asistente
-- ✅ Respuesta automática 24/7
-- ✅ Transcripción de mensajes de voz
-- ✅ Memoria conversacional (contexto de chat)
-- ✅ Búsqueda en base de conocimiento (RAG)
-- ✅ Clasificación automática de clientes
-- ✅ Detección de intenciones
-- ✅ Personalización por tipo de cliente
-- ✅ Captura de datos de contacto
+El agente sigue este orden de prioridad:
 
-### Integraciones Activas
-- ✅ Chatwoot (WhatsApp Business API)
-- ✅ OpenAI (GPT-4.1-mini + Whisper)
-- ✅ Airtable CRM
-- ✅ Supabase Vector Database
-- ✅ PostgreSQL Database
-- ✅ Google Drive
-- ✅ Telegram Notifications
+1. **Siempre primero**: llama "Consultar contactos" para saber con quién está hablando
+2. **Cliente nuevo**: se presenta ("Soy el Asistente Virtual de Atankalama")
+3. **Cliente conocido**: saluda por nombre
+4. **Preguntas del hotel**: consulta "Base de datos" antes de responder
+5. **Reservas/precios/disponibilidad**: no está en la base de datos — deriva a Cloudbeds con link y moneda correcta
+6. **No sabe responder**: registra la pregunta y ofrece contacto humano
+7. **Al cerrar conversación**: pide feedback del 1 al 5
+
+El agente razona internamente con la herramienta Think antes de responder. Ese razonamiento es invisible para el cliente.
 
 ---
 
-## 🎯 Casos de Uso de Notificaciones
+## Documentación disponible
 
-### 1. Solicitud de Reserva
-**Trigger**: Cliente menciona fechas, número de personas o pregunta por disponibilidad
-**Acción**: Notificación prioritaria al equipo comercial con:
-- Datos del contacto
-- Fechas solicitadas
-- Número de huéspedes
-- Enlace a conversación en Chatwoot
-
-### 2. Cotización Empresarial
-**Trigger**: Empresa consulta por tarifas corporativas o eventos
-**Acción**: Alerta al área comercial con:
-- Tipo de evento/servicio
-- Datos de la empresa
-- Requerimientos específicos
-
-### 3. Lead Calificado
-**Trigger**: Cliente muestra interés genuino y proporciona datos de contacto
-**Acción**: Registro automático en CRM con clasificación
-
-### 4. Mensaje de Voz Transcrito
-**Trigger**: Se recibe y procesa un audio
-**Acción**: Notificación con transcripción completa y enlace al audio
+| Documento | Contenido |
+|---|---|
+| [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Guía de problemas comunes y cómo resolverlos. **Empezar aquí si algo falla.** |
+| [CHANGELOG.md](CHANGELOG.md) | Historial completo de versiones y cambios |
+| [ISSUES.md](ISSUES.md) | Bugs conocidos, estado y soluciones aplicadas |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Detalle técnico de cada nodo |
+| [PROMPT.md](PROMPT.md) | Análisis del prompt del agente |
 
 ---
 
-## 📊 Arquitectura de Nodos
+## Problemas activos
 
-**Total de nodos**: 40 (verificado 2026-03-06)
-**Documentacion detallada**: Ver [ARCHITECTURE.md](ARCHITECTURE.md)
+| Issue | Descripción | Prioridad |
+|---|---|---|
+| #010 | Migrar base de conocimiento de Supabase (la DB gratuita será eliminada) | Alta |
 
-### Nodos Principales
-- Webhook receivers (Chatwoot)
-- Procesadores de audio (Whisper)
-- Consultas a bases de datos (PostgreSQL, Supabase)
-- Llamadas a OpenAI (Chat completion)
-- Integraciones CRM (Airtable)
-- Notificadores (Telegram)
-- HTTP Requests (APIs externas)
+Ver historial completo en [ISSUES.md](ISSUES.md).
 
 ---
 
-## 🐛 Problemas Conocidos
+## Historial de versiones
 
-Ver archivo completo: [ISSUES.md](ISSUES.md)
+| Versión | Fecha | Descripción |
+|---|---|---|
+| v1.4.1 | 7 Mar 2026 | Fix: prompt sin `promptType`, Think visible en respuestas |
+| v1.4.0 | 7 Mar 2026 | Rediseño completo del prompt (Think-first, -70% tokens) |
+| v1.3.0 | 6 Mar 2026 | Auditoría técnica completa, arquitectura verificada |
+| v1.2.0 | 5 Mar 2026 | Documentación completa del workflow |
+| v1.0.0 | Feb 2026 | Lanzamiento inicial |
 
-### Activos
-1. **Migracion Supabase urgente** — Supabase elimina la DB gratuita (Prioridad: Alta) → Issue #010
-
-### Resueltos en v1.4.0 (7 Marzo 2026)
-- ✅ Issue #009: Agente no seguía protocolo — nuevo prompt Think-first resuelve tool-calling
-- ✅ Issue #001: Prompt robótico — nuevo prompt -70% tokens, tono natural
-
-### Resueltos en auditoria 2026-03-06
-- ✅ Acumulacion Redis: funciona correctamente
-- ✅ Linea de voz: tecnicamente OK (Switch, descarga, Whisper)
-- ✅ Filtros Chatwoot: correctos
+Ver detalle completo en [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
-## 📝 Historial de Versiones
+## Responsable
 
-Ver archivo completo: [CHANGELOG.md](CHANGELOG.md)
-
-**Version actual**: v1.4.0 (Marzo 2026)
-
----
-
-## 🔐 Seguridad
-
-- ❌ No se almacenan contraseñas en el workflow
-- ✅ API keys en variables de entorno de n8n
-- ✅ Webhooks con validación de origen
-- ✅ Datos sensibles solo en bases privadas
-- ✅ Audios de voz con acceso restringido
-
----
-
-## 📚 Documentación Relacionada
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)**: Diagrama y detalle técnico de nodos
-- **[PROMPT.md](PROMPT.md)**: Análisis del prompt y propuestas de mejora
-- **[MESSAGE_PROCESSING.md](MESSAGE_PROCESSING.md)**: Análisis de procesamiento de mensajes
-- **[ISSUES.md](ISSUES.md)**: Lista completa de problemas y mejoras
-- **[CHANGELOG.md](CHANGELOG.md)**: Historial detallado de cambios
-
----
-
-## 🚀 Próximas Mejoras
-
-### En Desarrollo
-- 🔄 Testing del nuevo prompt (verificar tool-calling en conversaciones reales)
-- 🔄 Migracion Supabase → Google Sheets (urgente)
-- 🔄 Mejora del email de escalacion humana
-
-### Planificado
-- ⏳ Migracion notificaciones a Slack (pendiente aprobacion)
-- ⏳ Ampliacion de base de conocimiento
-- ⏳ Metricas y analytics
-- ⏳ A/B testing de prompts
-
----
-
-## 👥 Contacto
-
-**Responsable**: NicoCalama
-**Asistente IA**: Claude Code
-**Última revisión**: 5 de Marzo 2026
+**NicoCalama** — Hotel Atankalama
