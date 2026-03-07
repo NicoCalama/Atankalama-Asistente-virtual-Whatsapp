@@ -62,27 +62,22 @@ El prompt actual es demasiado largo (~800 tokens solo de instrucciones) con dema
 ### #010 - Migracion Supabase Vector Store
 
 **Prioridad**: 🔴 Alta
-**Estado**: 🚧 Urgente (Supabase eliminara la base de datos)
+**Estado**: ✅ RESUELTO - 7 de Marzo 2026
 **Reportado**: 6 de Marzo 2026
+**Resuelto**: 7 de Marzo 2026
 
 #### Descripcion
-Supabase notificó que eliminará la base de datos gratuita. La knowledge base del hotel (RAG) vive ahí. Necesita migración urgente.
+Supabase notificó que eliminará la base de datos gratuita. La knowledge base del hotel (RAG) vive ahí.
 
-#### Opciones evaluadas
-- **Google Sheets**: Simple, sin busqueda vectorial, pero suficiente para FAQ de hotel
-- **Pinecone free tier**: Vector search, mas complejo de configurar
-- **n8n Simple Store**: Sin dependencia externa, muy limitado
-- **Excel/Sheets + busqueda texto**: Mas sencillo, apropiado para volumen actual
+#### Decision tomada
+Se optó por **contratar la suscripción paga de Supabase** en lugar de migrar. Motivos:
+- Supabase se utilizará también para el agente de estudio de mercado y futuros proyectos
+- Mantener vector search real (mejor calidad de respuestas que texto plano)
+- Evitar el costo de migrar y reconfigurar nodos
+- Una sola cuenta centraliza todos los proyectos
 
-#### Recomendacion
-Para el volumen de una FAQ hotelera, Google Sheets con busqueda por texto es suficiente y elimina una dependencia externa compleja.
-
-#### Plan de accion
-- [ ] Exportar contenido actual de Supabase
-- [ ] Crear Google Sheet con knowledge base
-- [ ] Reemplazar nodo Supabase Vector Store por Google Sheets Tool
-- [ ] Actualizar prompt para instrucciones de busqueda
-- [ ] Testing de calidad de respuestas
+#### Accion requerida
+- [ ] Contratar plan pago de Supabase antes de que eliminen la DB gratuita
 
 ---
 
