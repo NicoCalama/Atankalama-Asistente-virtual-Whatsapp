@@ -6,6 +6,26 @@ Registro de problemas conocidos, bugs y mejoras planificadas del workflow.
 
 ## 🔴 Problemas Activos
 
+### #011 - Agente IA responde "No prompt specified" tras actualización del prompt
+
+**Prioridad**: 🔴 Alta
+**Estado**: ✅ RESUELTO - 7 de Marzo 2026
+**Reportado**: 7 de Marzo 2026
+**Resuelto**: 7 de Marzo 2026
+
+#### Descripción
+Tras aplicar el nuevo systemMessage via `n8n_update_partial_workflow`, el agente respondía con `{"error": "No prompt specified"}` en 24ms, sin llegar a llamar al LLM.
+
+#### Causa raíz confirmada
+El `updateNode` con `updates: {parameters: {options: {...}}}` **reemplazó** el objeto `parameters` completo, eliminando `promptType` y `text` que son necesarios para que el nodo lea la entrada del usuario.
+
+#### Solución implementada
+- ✅ Restaurados `promptType: "define"` y `text: "={{ $json.mensaje }}"` junto con el objeto `options` completo en un solo update
+- ✅ Fix secundario: el agente incluía "Think:" como texto en sus respuestas → prompt corregido para aclarar que Think es una herramienta interna, nunca visible para el cliente
+- ✅ Verificado con ejecuciones reales #1259 y #1261: flujo completo funcionando incluyendo feedback de cierre de conversación
+
+---
+
 ### #009 - Agente no sigue protocolo de fases
 
 **Prioridad**: 🔴 Alta

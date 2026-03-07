@@ -7,6 +7,27 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.4.1] - 2026-03-07
+
+### Fix: Bug #011 — Agente IA sin prompt + Think visible en respuestas
+
+#### Problema 1: "No prompt specified" (crítico)
+El update del systemMessage en v1.4.0 reemplazó el objeto `parameters` completo del nodo Agente IA, eliminando `promptType` y `text`.
+
+**Fix**: Restaurados `promptType: "define"` y `text: "={{ $json.mensaje }}"` junto al `options` completo en un solo update.
+
+#### Problema 2: Razonamiento interno visible para el cliente
+El agente incluía "Think: ..." como texto en sus respuestas al cliente porque el ejemplo del prompt usaba ese formato.
+
+**Fix**: Prompt actualizado para aclarar que Think es una herramienta interna. Ejemplo reformateado como `[Herramienta Think → razonamiento interno, nunca visible para el cliente]`.
+
+#### Verificado con ejecuciones reales
+- #1259: Agente completó flujo y solicitó feedback de cierre ✅
+- #1261: Agente recibió calificación y se despidió correctamente ✅
+- Sin razonamiento interno visible en ninguna respuesta ✅
+
+---
+
 ## [1.4.0] - 2026-03-07
 
 ### Rediseño completo del prompt del Agente IA (Stage 1)
