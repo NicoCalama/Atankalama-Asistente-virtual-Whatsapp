@@ -1,6 +1,9 @@
 # MCP config (contains API keys)
 .mcp.json
 
+# Claude Code local session data
+.claude/
+
 # n8n-skills (external repo clone, local reference only)
 n8n-skills/
 

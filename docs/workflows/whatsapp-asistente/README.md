@@ -159,9 +159,11 @@ Si se detecta:
 Ver archivo completo: [ISSUES.md](ISSUES.md)
 
 ### Activos
-1. **Agente no sigue protocolo de fases** — no llama herramientas antes de responder (Prioridad: Alta) → Issue #009
-2. **Prompt suena robotico** — exceso de reglas en mayusculas, pierde naturalidad (Prioridad: Alta) → Issue #001
-3. **Migracion Supabase urgente** — Supabase elimina la DB gratuita (Prioridad: Alta) → Issue #010
+1. **Migracion Supabase urgente** — Supabase elimina la DB gratuita (Prioridad: Alta) → Issue #010
+
+### Resueltos en v1.4.0 (7 Marzo 2026)
+- ✅ Issue #009: Agente no seguía protocolo — nuevo prompt Think-first resuelve tool-calling
+- ✅ Issue #001: Prompt robótico — nuevo prompt -70% tokens, tono natural
 
 ### Resueltos en auditoria 2026-03-06
 - ✅ Acumulacion Redis: funciona correctamente
@@ -174,7 +176,7 @@ Ver archivo completo: [ISSUES.md](ISSUES.md)
 
 Ver archivo completo: [CHANGELOG.md](CHANGELOG.md)
 
-**Version actual**: v1.3.0 (Marzo 2026)
+**Version actual**: v1.4.0 (Marzo 2026)
 
 ---
 
@@ -201,7 +203,7 @@ Ver archivo completo: [CHANGELOG.md](CHANGELOG.md)
 ## 🚀 Próximas Mejoras
 
 ### En Desarrollo
-- 🔄 Rediseno de prompt con metodologia 5 pasos (proxima sesion)
+- 🔄 Testing del nuevo prompt (verificar tool-calling en conversaciones reales)
 - 🔄 Migracion Supabase → Google Sheets (urgente)
 - 🔄 Mejora del email de escalacion humana
 

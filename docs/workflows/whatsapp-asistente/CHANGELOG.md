@@ -7,6 +7,30 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.4.0] - 2026-03-07
+
+### Rediseño completo del prompt del Agente IA (Stage 1)
+
+#### Problema resuelto
+- Issue #001: Prompt robótico con lenguaje corporativo excesivo
+- Issue #009: Agente no llamaba herramientas antes de responder (confirmado ejecución #1233)
+
+#### Cambios implementados
+- **Nuevo systemMessage**: ~260 tokens (vs ~850 anterior = -70% de reducción)
+- **Think-first**: el agente usa Think explícitamente antes de actuar
+- **Árbol de situaciones**: reemplaza las 6 fases lineales por condiciones independientes
+- **Instrucciones positivas**: elimina las prohibiciones en MAYÚSCULAS
+- **CRM simplificado**: reglas de Airtable eliminadas del prompt (ya están en los nodos vía $fromAI)
+- **B2B simplificado**: todo redirige a Cloudbeds (igual que B2C), sin protocolo de 5 pasos
+- **Encuesta mejorada**: incluye razón de la nota ("¿por qué esa nota?")
+- **Saludo contextual**: cliente nuevo se presenta; cliente conocido es saludado por nombre
+
+#### Archivos modificados
+- Workflow en n8n: nodo "Agente IA" → `parameters.options.systemMessage`
+- `workflows/whatsapp-asistente.json` → exportado con prompt nuevo
+
+---
+
 ## [1.3.0] - 2026-03-06
 
 ### Auditoria Tecnica Completa

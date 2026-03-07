@@ -9,9 +9,9 @@ Registro de problemas conocidos, bugs y mejoras planificadas del workflow.
 ### #009 - Agente no sigue protocolo de fases
 
 **Prioridad**: 🔴 Alta
-**Estado**: 🔍 Confirmado con datos reales
+**Estado**: ✅ RESUELTO - Prompt rediseñado el 7 de Marzo 2026
 **Reportado**: 6 de Marzo 2026
-**Asignado a**: Claude AI + NicoCalama
+**Resuelto**: 7 de Marzo 2026
 
 #### Descripcion
 El agente IA no ejecuta las herramientas en el orden que el prompt exige. Confirmado con test real de mensaje de voz (ejecucion #1233).
@@ -31,11 +31,11 @@ El agente IA no ejecuta las herramientas en el orden que el prompt exige. Confir
 #### Causa raiz probable
 El prompt actual es demasiado largo (~800 tokens solo de instrucciones) con demasiadas reglas en MAYUSCULAS y "ESTRICTAMENTE PROHIBIDO". El modelo procesa el texto pero no ejecuta las acciones tool-call de forma consistente. Prompt de reglas vs prompt de comportamiento.
 
-#### Plan de accion
-- [ ] Rediseno completo del prompt con metodologia de 5 pasos
-- [ ] Reducir longitud y simplificar estructura
-- [ ] Reemplazar prohibiciones en mayusculas por instrucciones positivas
-- [ ] Testing A/B con prompt nuevo
+#### Solucion implementada
+- ✅ Prompt rediseñado con metodología Think-first + árbol de situaciones
+- ✅ Reducción -70% de tokens (850 → 260)
+- ✅ Prohibiciones reemplazadas por instrucciones positivas en secuencia
+- ⏳ Testing A/B pendiente (enviar mensajes reales y verificar ejecuciones)
 
 ---
 
@@ -69,9 +69,9 @@ Para el volumen de una FAQ hotelera, Google Sheets con busqueda por texto es suf
 ### #001 - Prompt suena robótico y poco natural
 
 **Prioridad**: 🟡 Media-Alta
-**Estado**: 🔍 En análisis
+**Estado**: ✅ RESUELTO - Prompt rediseñado el 7 de Marzo 2026
 **Reportado**: 4 de Marzo 2026
-**Asignado a**: Claude AI + NicoCalama
+**Resuelto**: 7 de Marzo 2026
 
 #### Descripción
 El asistente responde de forma correcta y precisa, pero el tono de las respuestas suena demasiado formal, robótico y poco conversacional. Los clientes pueden percibir que están hablando con un bot en lugar de sentir una conversación natural.
