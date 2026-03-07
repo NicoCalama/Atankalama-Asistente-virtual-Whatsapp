@@ -155,10 +155,10 @@ Credenciales utilizadas: OpenAI, Chatwoot, Airtable, Supabase, PostgreSQL, Googl
 
 | Documento | Contenido |
 |---|---|
-| [TROUBLESHOOTING.md](docs/workflows/whatsapp-asistente/TROUBLESHOOTING.md) | Guía completa de errores con diagrama del flujo real |
-| [CHANGELOG.md](docs/workflows/whatsapp-asistente/CHANGELOG.md) | Historial de versiones |
-| [ISSUES.md](docs/workflows/whatsapp-asistente/ISSUES.md) | Bugs conocidos y estado |
-| [ARCHITECTURE.md](docs/workflows/whatsapp-asistente/ARCHITECTURE.md) | Detalle técnico de nodos |
+| [TROUBLESHOOTING.md] | Guía completa de errores con diagrama del flujo real |
+| [CHANGELOG.md] | Historial de versiones |
+| [ISSUES.md] | Bugs conocidos y estado |
+| [ARCHITECTURE.md] | Detalle técnico de nodos |
 
 ---
 
