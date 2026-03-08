@@ -3,8 +3,8 @@
 Documentación técnica detallada de la arquitectura, nodos y flujo de datos del workflow.
 
 **Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
-**Total de Nodos**: 40 (documentacion anterior de 19 nodos estaba desactualizada)
-**Ultima auditoria**: 6 de Marzo 2026 — arquitectura verificada contra n8n real
+**Total de Nodos**: 40
+**Ultima auditoria**: 8 de Marzo 2026 — arquitectura verificada contra n8n real
 
 ---
 
@@ -60,7 +60,7 @@ CLIENTE (WhatsApp)
               • Consultar contactos (Airtable)
               • Crear/Actualizar contacto (Airtable)
               • Base de datos (Supabase Vector Store)
-              • Contactar Humano (Gmail)
+              • Contactar Humano (toolWorkflow → subworkflow etiqueta chatwoot)
               • reporte preguntas sin respuesta (Google Sheets)
               • registrar_feedback_encuesta (Airtable)
               • Calculator
@@ -77,7 +77,52 @@ CLIENTE (WhatsApp)
 **Memoria del agente**: Postgres Chat Memory (historial de conversacion)
 **Modelo LLM**: OpenAI Chat Model (GPT-4.1)
 
+**Memoria del agente**: Postgres Chat Memory (historial de conversacion)
+**Modelo LLM**: OpenAI Chat Model (GPT-4.1)
+
 **Nota**: La linea de voz NO pasa por Redis — se procesa inmediatamente al llegar.
+
+---
+
+## 🔀 Subworkflow: Escalación a Humano
+
+**ID**: `K3WrelHxg7k9EePiD5-2S`
+**Nombre**: subworkflow etiqueta chatwoot
+**Activado por**: Nodo "Contactar Humano" (toolWorkflow) del flujo principal
+
+### Flujo interno
+
+```
+Agente IA llama "Contactar Humano"
+       │
+       ▼
+When Executed by Another Workflow
+  inputs: Resumen conversacion, Id Conversacion Chatwoot
+       │
+       ▼
+Edit Fields (mapea los inputs)
+       │
+       ▼
+Slack — Send a message (Block Kit)
+  • Header: 🚨 Solicitud de atención humana — WhatsApp
+  • Sección: Resumen de la conversación
+  • Botón verde: 💬 Abrir chat en Chatwoot → link directo
+       │
+       ▼
+Etiqueta Humano (HTTP Request → Chatwoot API)
+  POST /api//accounts/150504/conversations/{Id}/custom_atributes
+  body: { "custom_atributes": { "humano": "Activado" } }
+```
+
+### Inputs esperados
+
+| Campo | Tipo | Origen |
+|---|---|---|
+| `Resumen conversacion` | string | Generado por el modelo (`$fromAI()`) |
+| `Id Conversacion Chatwoot` | string | `$('Webhook').item.json.body.data.chatwootConversationId` |
+
+### Pendiente
+- `channelId` del nodo Slack debe configurarse con el canal de recepción de la empresa
 
 ---
 

@@ -7,6 +7,37 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.5.0] - 2026-03-08
+
+### Escalación a Humano — Rediseño completo (subworkflow + Slack)
+
+#### Cambios implementados
+
+**Nuevo subworkflow: "subworkflow etiqueta chatwoot"** (ID: `K3WrelHxg7k9EePiD5-2S`)
+- Trigger: `ExecuteWorkflowTrigger` con dos inputs: `Resumen conversacion` + `Id Conversacion Chatwoot`
+- Flujo: Trigger → Edit Fields → Slack (Block Kit) → Chatwoot (custom attribute)
+- Slack: mensaje con Block Kit — header 🚨 + resumen + botón verde primario "💬 Abrir chat en Chatwoot"
+- Chatwoot: POST a endpoint custom con `custom_atributes: { humano: "Activado" }` usando el ID de la conversación
+
+**Reemplazo de herramienta de escalación en flujo principal**
+- Eliminado nodo "Contactar Humano" (Gmail tool) — reemplazado por el subworkflow
+- Renombrado "Contactar Humano1" → **"Contactar Humano"** (tipo: `toolWorkflow`)
+- Configurados Workflow Inputs:
+  - `Resumen conversacion` → generado por el modelo vía `$fromAI()`
+  - `Id Conversacion Chatwoot` → `$('Webhook').item.json.body.data.chatwootConversationId`
+
+**Prompt actualizado (v1.5.0)**
+- `"Contactar Humano"` ahora invoca el subworkflow de Slack/Chatwoot (no email)
+- Instrucción explícita post-escalación: responder con confirmación **SIN preguntas adicionales**
+  - Ejemplo: `"Listo, ya avisé a recepción. En breve se pondrán en contacto contigo. 😊"`
+- La conversación queda en pausa hasta que recepción atienda
+- Alerta de seguridad también usa "Contactar Humano" sin preguntas adicionales
+
+#### Pendiente
+- Configurar `channelId` del canal de Slack de recepción (subworkflow inactivo hasta que esté configurado)
+
+---
+
 ## [1.4.1] - 2026-03-07
 
 ### Fix: Bug #011 — Agente IA sin prompt + Think visible en respuestas
@@ -242,6 +273,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 5 de Marzo 2026
-**Versión actual**: v1.2.0
+**Última actualización**: 8 de Marzo 2026
+**Versión actual**: v1.5.0
 **Mantenedores**: NicoCalama + Claude AI Assistant
