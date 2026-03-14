@@ -7,6 +7,30 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.5.1] - 2026-03-13
+
+### Fix: Doble presentación y saludo incorrecto mid-conversación
+
+#### Problemas resueltos
+
+**Bug: El bot se presentaba más de una vez en la misma conversación**
+- Causa: La instrucción de CLIENTE NUEVO se aplicaba en cada mensaje, no solo en el primero. Si el usuario no había dado su nombre aún, el bot lo seguía clasificando como "nuevo" y repetía "Soy el Asistente Virtual de Atankalama, un gusto en conocerte."
+- Fix: Se añadió condición explícita — la presentación solo ocurre si no hay historial previo en esa conversación (memoria PostgreSQL vacía para el `conversation_id`).
+
+**Bug: "qué bueno que estés de vuelta" incorrecto mid-conversación**
+- Causa: El bot llama "Consultar contactos" en cada mensaje. Cuando el usuario daba su nombre en el mensaje 3 y el bot lo guardaba en Airtable, el mensaje 4 ya encontraba el contacto en el CRM y activaba el saludo de "cliente conocido" — aunque la persona nunca había tenido una conversación anterior.
+- Fix: El saludo de cliente conocido ahora también se restringe al primer mensaje (sin historial previo). Cambio de "qué bueno que estés de vuelta" → "¡qué gusto verte de nuevo!" (más neutral, no asume hospedaje previo).
+
+#### Mecanismo de detección "primer mensaje"
+El Postgres Chat Memory usa `conversation_id` de Chatwoot como clave de sesión. Cada conversación nueva en Chatwoot genera un `conversation_id` distinto → memoria vacía → el agente infiere que es el primer mensaje al no encontrar historial en su contexto.
+
+#### Prompt actualizado (v1.5.1)
+- CLIENTE NUEVO: presentación condicional según historial
+- CLIENTE CONOCIDO: saludo condicional según historial + frase más neutral
+- Añadido segundo ejemplo de referencia: cliente nuevo en segundo mensaje (sin presentación)
+
+---
+
 ## [1.5.0] - 2026-03-08
 
 ### Escalación a Humano — Rediseño completo (subworkflow + Slack)
@@ -273,6 +297,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 8 de Marzo 2026
-**Versión actual**: v1.5.0
+**Última actualización**: 13 de Marzo 2026
+**Versión actual**: v1.5.1
 **Mantenedores**: NicoCalama + Claude AI Assistant
