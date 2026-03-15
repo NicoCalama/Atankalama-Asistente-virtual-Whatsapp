@@ -269,25 +269,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-## 🔮 Roadmap
-
-### [1.3.0] - Planificado para Marzo 2026
-
-#### Añadido
-- Sistema de métricas y analytics
-- A/B testing de prompts
-- Nuevo prompt conversacional (ver PROMPT.md)
-
-#### Cambiado
-- Optimización de procesamiento de mensajes
-- Mejora en clasificación de intenciones
-
-#### Por Definir
-- Migración a Slack (pendiente aprobación)
-- Ampliación de base de conocimiento
-
----
-
 ## 📚 Referencias
 
 - **[README.md](README.md)**: Documentación principal

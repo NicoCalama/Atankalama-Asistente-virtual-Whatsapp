@@ -4,7 +4,7 @@ Documentación técnica detallada de la arquitectura, nodos y flujo de datos del
 
 **Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
 **Total de Nodos**: 40
-**Ultima auditoria**: 8 de Marzo 2026 — arquitectura verificada contra n8n real
+**Última auditoría**: 13 de Marzo 2026 — v1.5.1
 
 ---
 
@@ -80,7 +80,10 @@ CLIENTE (WhatsApp)
 **Memoria del agente**: Postgres Chat Memory (historial de conversacion)
 **Modelo LLM**: OpenAI Chat Model (GPT-4.1)
 
-**Nota**: La linea de voz NO pasa por Redis — se procesa inmediatamente al llegar.
+**Notas**:
+- La línea de voz NO pasa por Redis — se procesa inmediatamente al llegar.
+- Redis wait: 4 segundos (cambiado de 12s para evitar timeout de Chatwoot).
+- El diagrama muestra "Espera 12s" en dos lugares — el valor real activo es 4s.
 
 ---
 
@@ -126,578 +129,142 @@ Etiqueta Humano (HTTP Request → Chatwoot API)
 
 ---
 
-## 🧩 Detalle de Nodos
-
-### 1. Webhook Receiver (Chatwoot)
-**Tipo**: `Webhook`
-**Función**: Recibe eventos desde Chatwoot cuando llega un mensaje nuevo
-
-**Configuración**:
-- HTTP Method: `POST`
-- Authentication: API Key validation
-- Response: 200 OK
-
-**Output**:
-```json
-{
-  "conversation_id": "string",
-  "contact": {
-    "id": "number",
-    "name": "string",
-    "phone_number": "string"
-  },
-  "message": {
-    "content": "string",
-    "message_type": "incoming",
-    "content_type": "text|audio",
-    "attachments": []
-  }
-}
-```
-
----
-
-### 2. Data Extractor (Contacto)
-**Tipo**: `Code Node (JavaScript)`
-**Función**: Extrae y normaliza datos del contacto desde el payload de Chatwoot
-
-**Lógica**:
-```javascript
-// Extrae:
-- conversation_id
-- contact_id
-- contact_name
-- phone_number (normalizado)
-- message_type (text/audio)
-- message_content
-- timestamp
-```
-
----
-
-### 3. Switch: Tipo de Mensaje
-**Tipo**: `Switch Node`
-**Función**: Enruta el flujo según el tipo de mensaje
-
-**Rutas**:
-- **Route 1 (text)**: `message.content_type === 'text'`
-- **Route 2 (audio)**: `message.content_type === 'audio'`
-
----
-
-### 4. Download Audio (Voz)
-**Tipo**: `HTTP Request`
-**Función**: Descarga el archivo de audio desde Chatwoot
-
-**Configuración**:
-- Method: `GET`
-- URL: `{{ $json.message.attachments[0].data_url }}`
-- Response Format: `Binary`
-
----
-
-### 5. Transcribe Audio (Whisper)
-**Tipo**: `OpenAI Node`
-**Función**: Transcribe audio a texto usando Whisper
-
-**Configuración**:
-- Resource: `Audio`
-- Operation: `Transcribe`
-- Model: `whisper-1`
-- Input: Binary audio file
-- Language: `es` (Español)
-
-**Output**:
-```json
-{
-  "text": "Transcripción del audio"
-}
-```
-
----
-
-### 6. Save Audio to Drive
-**Tipo**: `Google Drive Node`
-**Función**: Guarda el audio original en Google Drive para referencia
-
-**Configuración**:
-- Resource: `File`
-- Operation: `Upload`
-- Folder: `/n8n/whatsapp-audios/`
-- Filename: `{{ $json.conversation_id }}_{{ $now.format('YYYY-MM-DD_HHmmss') }}.ogg`
-
----
-
-### 7. PostgreSQL: Get Conversation History
-**Tipo**: `PostgreSQL Node`
-**Función**: Recupera historial de conversación para contexto
-
-**Query**:
-```sql
-SELECT
-  role,
-  content,
-  created_at
-FROM conversation_history
-WHERE conversation_id = $1
-ORDER BY created_at DESC
-LIMIT 10
-```
-
-**Variables**:
-- `$1`: `{{ $json.conversation_id }}`
-
-**Output**: Array de mensajes previos
-
----
-
-### 8. Supabase: Vector Search (RAG)
-**Tipo**: `Supabase Node`
-**Función**: Búsqueda semántica en base de conocimiento
-
-**Configuración**:
-- Resource: `Vector Search`
-- Table: `knowledge_base`
-- Match count: `5`
-- Similarity threshold: `0.7`
-
-**Proceso**:
-1. Genera embedding del mensaje actual
-2. Busca documentos similares
-3. Retorna top 5 más relevantes
-
-**Output**:
-```json
-[
-  {
-    "content": "Información relevante del hotel",
-    "metadata": { "category": "rooms", "topic": "pricing" },
-    "similarity": 0.89
-  }
-]
-```
-
----
-
-### 9. Code: Classify Client Type
-**Tipo**: `Code Node (JavaScript)`
-**Función**: Clasifica el tipo de cliente según patrones
-
-**Lógica**:
-```javascript
-// Análisis de:
-- Número de personas mencionadas
-- Tipo de consulta (corporativa vs vacacional)
-- Palabras clave ("empresa", "factura", "familia", "tour")
-- Historial previo
-
-// Output:
-return {
-  client_type: "tourist" | "business",
-  confidence: 0.0-1.0
-}
-```
-
----
-
-### 10. Code: Detect Intent
-**Tipo**: `Code Node (JavaScript)`
-**Función**: Identifica la intención del mensaje
-
-**Intenciones detectadas**:
-- `booking_request`: Solicitud de reserva
-- `pricing_inquiry`: Consulta de precios
-- `availability_check`: Consulta disponibilidad
-- `general_info`: Información general
-- `complaint`: Reclamo o problema
-- `other`: Otro
-
----
-
-### 11. Code: Build AI Prompt
-**Tipo**: `Code Node (JavaScript)`
-**Función**: Construye el prompt completo para GPT
-
-**Estructura del Prompt**:
-```javascript
-{
-  system: "Prompt de sistema con rol e instrucciones",
-  context: {
-    client_type: "tourist|business",
-    conversation_history: [...],
-    relevant_knowledge: [...],
-    hotel_info: {...}
-  },
-  user_message: "Mensaje actual del cliente"
-}
-```
-
-**Ver**: [PROMPT.md](PROMPT.md) para análisis detallado del prompt
-
----
-
-### 12. OpenAI: Generate Response
-**Tipo**: `OpenAI Node`
-**Función**: Genera respuesta conversacional con GPT-4.1-mini
-
-**Configuración**:
-- Model: `gpt-4.1-mini`
-- Temperature: `0.7`
-- Max tokens: `500`
-- Top P: `0.9`
-
-**Input**:
-```json
-{
-  "messages": [
-    { "role": "system", "content": "..." },
-    { "role": "user", "content": "..." }
-  ]
-}
-```
-
-**Output**: Respuesta del asistente
-
----
-
-### 13. Validate Response
-**Tipo**: `Code Node (JavaScript)`
-**Función**: Valida que la respuesta sea apropiada
-
-**Validaciones**:
-- No contiene información sensible
-- Longitud apropiada (< 500 chars para WhatsApp)
-- Tono adecuado
-- No hay URLs sospechosas
-
----
-
-### 14. Chatwoot: Send Message
-**Tipo**: `HTTP Request`
-**Función**: Envía respuesta al cliente vía Chatwoot API
-
-**Configuración**:
-- Method: `POST`
-- URL: `{{ $env.CHATWOOT_URL }}/api/v1/accounts/{{ $env.ACCOUNT_ID }}/conversations/{{ $json.conversation_id }}/messages`
-- Headers:
-  - `api_access_token`: `{{ $env.CHATWOOT_TOKEN }}`
-- Body:
-```json
-{
-  "content": "{{ $json.ai_response }}",
-  "message_type": "outgoing",
-  "private": false
-}
-```
-
----
-
-### 15. PostgreSQL: Save Conversation
-**Tipo**: `PostgreSQL Node`
-**Función**: Guarda la conversación en la base de datos
-
-**Query**:
-```sql
-INSERT INTO conversation_history
-  (conversation_id, role, content, created_at, metadata)
-VALUES
-  ($1, 'user', $2, NOW(), $3),
-  ($1, 'assistant', $4, NOW(), $5)
-```
-
-**Datos guardados**:
-- Mensaje del usuario
-- Respuesta del asistente
-- Metadata (tipo cliente, intención, etc.)
-
----
-
-### 16. Airtable: Update Lead
-**Tipo**: `Airtable Node`
-**Función**: Crea o actualiza registro en CRM
-
-**Configuración**:
-- Base: `Hotel CRM`
-- Table: `Leads`
-- Operation: `Upsert` (por phone_number)
-
-**Campos actualizados**:
-```json
-{
-  "Name": "{{ $json.contact_name }}",
-  "Phone": "{{ $json.phone_number }}",
-  "Client Type": "{{ $json.client_type }}",
-  "Last Message": "{{ $json.message_content }}",
-  "Last Interaction": "{{ $now }}",
-  "Status": "Active"
-}
-```
-
----
-
-### 17. IF: Detect Commercial Opportunity
-**Tipo**: `IF Node`
-**Función**: Detecta si hay oportunidad comercial que requiere notificación
-
-**Condiciones**:
-```javascript
-{{ $json.intent === 'booking_request' }} OR
-{{ $json.intent === 'pricing_inquiry' && $json.client_type === 'business' }} OR
-{{ $json.message_content.includes('reserva') }}
-```
-
----
-
-### 18. Telegram: Notify Team
-**Tipo**: `Telegram Node`
-**Función**: Notifica al equipo comercial sobre oportunidades
-
-**Configuración**:
-- Chat ID: `{{ $env.TELEGRAM_CHAT_ID }}`
-- Parse mode: `Markdown`
-
-**Mensaje**:
-```markdown
-🔔 *Nueva Oportunidad Comercial*
-
-👤 *Cliente*: {{ $json.contact_name }}
-📱 *Teléfono*: {{ $json.phone_number }}
-🏷️ *Tipo*: {{ $json.client_type }}
-💬 *Intención*: {{ $json.intent }}
-
-📝 *Mensaje*:
-{{ $json.message_content }}
-
-🤖 *Respuesta enviada*:
-{{ $json.ai_response }}
-
-🔗 [Ver conversación en Chatwoot]({{ $json.chatwoot_url }})
-```
-
----
-
-### 19. Error Handler
-**Tipo**: `Error Workflow`
-**Función**: Captura errores y notifica
-
-**Acciones**:
-- Log del error en PostgreSQL
-- Notificación a Telegram (canal técnico)
-- Respuesta genérica al cliente si es posible
+## 🧩 Detalle de Nodos (arquitectura real)
+
+> Los nodos están organizados por sección del flujo. Los IDs de nodo son los internos de n8n.
+
+### Entrada y filtros
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| Webhook | `Webhook` | Recibe eventos de Chatwoot (POST) |
+| If | `IF` | Filtra: solo `message_created` + `Contact` + `incoming` |
+| CHATWOOT Obtener Etiqueta | `HTTP Request` | Consulta etiquetas de la conversación |
+| Filter | `Filter` | Excluye conversaciones con etiqueta "humano" |
+| Edit Fields | `Set` | Extrae: teléfono, mensaje, tipo de contenido, ID Chatwoot |
+
+### Línea de texto (Redis)
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| Redis (push) | `Redis` | Acumula mensaje en lista por teléfono |
+| Espera 4s | `Wait` | Espera que lleguen mensajes adicionales |
+| Redis6 (get lista) | `Redis` | Recupera todos los mensajes acumulados |
+| Switch4 | `Switch` | Decide: Ignoran (otra sesión) / Esperar / Continuamos |
+| Espera 4s (2) | `Wait` | Segunda espera si Switch4 = Esperar |
+| Redis7 (delete) | `Redis` | Limpia la lista tras leer |
+| Edit Fields6 | `Set` | Junta mensajes acumulados en campo `mensaje` |
+
+### Línea de voz (directa, sin Redis)
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| descargar audio | `HTTP Request` | Descarga el archivo de audio desde Chatwoot |
+| Transcribe (Whisper) | `OpenAI` | Transcribe audio a texto (`whisper-1`) |
+| Edit Fields2 | `Set` | Mapea el texto transcrito al campo `mensaje` |
+
+### Merge y Agente IA
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| Merge1 | `Merge` | Une salidas de línea de texto y de voz |
+| Agente IA | `AI Agent` | Genera respuesta. Modelo: GPT-4.1. nodeId: `b6432bcb-...` |
+| Postgres Chat Memory | `PostgreSQL` | Historial de conversación (sub-nodo del Agente) |
+| OpenAI Chat Model | `OpenAI Chat Model` | Motor LLM del agente (GPT-4.1) |
+
+### Herramientas del Agente IA
+
+| Herramienta | Tipo | Función |
+|-------------|------|---------|
+| Think | `toolThink` | Razonamiento interno (nunca visible para el cliente) |
+| Consultar contactos | `Airtable` | Busca el contacto en el CRM |
+| Crear/Actualizar contacto | `Airtable` | Crea o actualiza el contacto |
+| Base de datos | `Supabase Vector Store` | Búsqueda semántica en conocimiento del hotel |
+| Contactar Humano | `toolWorkflow` | Llama subworkflow de escalación (Slack + Chatwoot) |
+| reporte preguntas sin respuesta | `Google Sheets` | Registra preguntas que el agente no pudo responder |
+| registrar_feedback_encuesta | `Airtable` | Guarda el feedback de cierre de conversación |
+| Calculator | `toolCalculator` | Cálculos matemáticos básicos |
+
+### Salida
+
+| Nodo | Tipo | Función |
+|------|------|---------|
+| HTTP Request | `HTTP Request` | Envía respuesta al cliente vía Chatwoot API |
+| (IF error) | `IF` | Detecta si el envío falló |
+| Gmail (error) | `Gmail` | Notifica error de Chatwoot al equipo técnico |
 
 ---
 
 ## 🔄 Flujo de Datos
 
-### Caso 1: Mensaje de Texto Simple
+### Caso 1: Mensaje de texto
 
 ```
-Cliente → Chatwoot → Webhook n8n →
-Extractor → Switch (texto) →
-PostgreSQL (historial) → Supabase (RAG) →
-Clasificador → Detector Intención →
-Build Prompt → GPT-4.1 → Validador →
-Chatwoot (envío) → PostgreSQL (guardar) →
-Airtable → FIN
+Webhook → If → CHATWOOT Obtener Etiqueta → Filter
+→ Edit Fields → Switch (texto) → Redis push → Espera 4s
+→ Redis get → Switch4 → Continuamos → Redis delete
+→ Edit Fields6 → Merge1 → Agente IA → HTTP Request → FIN
 ```
 
-**Tiempo estimado**: 2-4 segundos
+**Tiempo típico**: 5-15 segundos
 
----
-
-### Caso 2: Mensaje de Voz
+### Caso 2: Mensaje de voz
 
 ```
-Cliente → Chatwoot → Webhook n8n →
-Extractor → Switch (audio) →
-Download Audio → Whisper (transcripción) →
-Google Drive (guardar) →
-[Continúa como flujo de texto] →
-Telegram (notificación de voz transcrita) → FIN
+Webhook → If → CHATWOOT Obtener Etiqueta → Filter
+→ Edit Fields → Switch (audio) → descargar audio
+→ Transcribe (Whisper) → Edit Fields2 → Merge1
+→ Agente IA → HTTP Request → FIN
 ```
 
-**Tiempo estimado**: 5-10 segundos (+ tiempo del audio)
+**Tiempo típico**: 8-20 segundos
 
----
-
-### Caso 3: Oportunidad Comercial Detectada
+### Caso 3: Escalación humana
 
 ```
-[Flujo normal hasta respuesta enviada] →
-IF (oportunidad) → TRUE →
-Telegram (notificación equipo) →
-Airtable (marcar como hot lead) → FIN
+[Agente decide escalar]
+→ Contactar Humano (toolWorkflow)
+→ Subworkflow K3WrelHxg7k9EePiD5-2S
+  → Slack (Block Kit con resumen + botón Chatwoot)
+  → Chatwoot (custom_attribute: humano = "Activado")
+→ Agente responde confirmación fija (sin preguntas adicionales)
+→ HTTP Request → FIN
 ```
 
 ---
 
 ## 🗄️ Bases de Datos
 
-### PostgreSQL Schema
+### PostgreSQL (Chat Memory)
+- Gestionado por el sub-nodo `Postgres Chat Memory` del Agente IA
+- Clave de sesión: `conversation_id` de Chatwoot
+- Cada conversación nueva tiene `conversation_id` distinto → memoria limpia
 
-```sql
--- Tabla: conversation_history
-CREATE TABLE conversation_history (
-  id SERIAL PRIMARY KEY,
-  conversation_id VARCHAR(255) NOT NULL,
-  role VARCHAR(20) NOT NULL, -- 'user' | 'assistant'
-  content TEXT NOT NULL,
-  created_at TIMESTAMP DEFAULT NOW(),
-  metadata JSONB
-);
-
-CREATE INDEX idx_conversation_id ON conversation_history(conversation_id);
-CREATE INDEX idx_created_at ON conversation_history(created_at DESC);
-```
-
----
-
-### Supabase (Vector Database)
-
-```sql
--- Tabla: knowledge_base
-CREATE TABLE knowledge_base (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  content TEXT NOT NULL,
-  embedding VECTOR(1536), -- OpenAI embedding dimension
-  metadata JSONB,
-  created_at TIMESTAMP DEFAULT NOW()
-);
-
--- Índice para búsqueda vectorial
-CREATE INDEX ON knowledge_base
-USING ivfflat (embedding vector_cosine_ops);
-```
-
----
+### Supabase (Vector Store)
+- Tabla: `knowledge_base` (información del hotel)
+- Credencial: `bFOo7cpHxcNnPXVD` ("Supabase account")
+- Proyecto: "Atankalama Corp" (ref: `zxzimlqrjnmigblulthg`)
 
 ### Airtable (CRM)
-
-**Base**: Hotel CRM
-**Tabla**: Leads
-
-| Campo | Tipo | Descripción |
-|-------|------|-------------|
-| Name | Single line text | Nombre del contacto |
-| Phone | Phone number | Teléfono (unique) |
-| Client Type | Single select | Tourist / Business |
-| Status | Single select | Active / Cold / Hot / Converted |
-| Last Message | Long text | Último mensaje enviado |
-| Last Interaction | Date | Última vez que escribió |
-| Source | Single select | WhatsApp / Web / Other |
-| Assigned To | Collaborator | Vendedor asignado |
-| Notes | Long text | Notas del equipo |
+- Herramientas: Consultar / Crear / Actualizar contacto, registrar_feedback_encuesta
+- Campos clave: Nombre, Teléfono, Estado, Notas
 
 ---
 
-## 🔌 Integraciones Externas
+## 🔌 Credenciales utilizadas
 
-### 1. Chatwoot
-- **Endpoint**: `{{ $env.CHATWOOT_URL }}/api/v1/`
-- **Auth**: API Token
-- **Uso**: Recepción y envío de mensajes WhatsApp
+Todas las credenciales están en **n8n → Settings → Credentials**, nunca en el código.
 
-### 2. OpenAI
-- **Endpoints**:
-  - `https://api.openai.com/v1/chat/completions` (GPT)
-  - `https://api.openai.com/v1/audio/transcriptions` (Whisper)
-- **Auth**: Bearer Token
-- **Modelos**: `gpt-4.1-mini`, `whisper-1`
-
-### 3. Supabase
-- **Endpoint**: `{{ $env.SUPABASE_URL }}/rest/v1/`
-- **Auth**: API Key + JWT
-- **Uso**: Vector search (RAG)
-
-### 4. Airtable
-- **Endpoint**: `https://api.airtable.com/v0/{{ $env.AIRTABLE_BASE_ID }}/`
-- **Auth**: Bearer Token
-- **Uso**: CRM - gestión de leads
-
-### 5. Google Drive
-- **API**: Google Drive v3
-- **Auth**: OAuth2
-- **Uso**: Almacenamiento de audios
-
-### 6. Telegram
-- **Endpoint**: `https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/`
-- **Auth**: Bot Token
-- **Uso**: Notificaciones al equipo
-
----
-
-## 🔐 Variables de Entorno
-
-```bash
-# Chatwoot
-CHATWOOT_URL=https://[URL protegida]
-CHATWOOT_TOKEN=xxxxxxxxxx
-ACCOUNT_ID=xx
-
-# OpenAI
-OPENAI_API_KEY=sk-xxxxxxxxxx
-
-# Supabase
-SUPABASE_URL=https://[URL protegida]
-SUPABASE_KEY=xxxxxxxxxx
-
-# Airtable
-AIRTABLE_API_KEY=keyxxxxxxxxxx
-AIRTABLE_BASE_ID=appxxxxxxxxxx
-
-# Telegram
-TELEGRAM_BOT_TOKEN=xxxxxxxxxx:xxxxxxxxxxx
-TELEGRAM_CHAT_ID=-xxxxxxxxxx
-
-# PostgreSQL
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=n8n_db
-POSTGRES_USER=n8n_user
-POSTGRES_PASSWORD=xxxxxxxxxx
-```
-
----
-
-## ⚡ Optimizaciones Implementadas
-
-### 1. Caching
-- ❌ No implementado aún
-- 💡 Idea: Cachear respuestas a preguntas frecuentes
-
-### 2. Paralelización
-- ✅ Consultas a PostgreSQL y Supabase en paralelo
-- ✅ Actualización de CRM en background (no bloquea respuesta)
-
-### 3. Rate Limiting
-- ✅ Límite de 10 req/min por conversación (evitar spam)
-- ✅ Queue de mensajes si excede límite
-
-### 4. Error Handling
-- ✅ Retry automático en fallas de API (max 3 intentos)
-- ✅ Fallback a respuesta genérica si GPT falla
-- ✅ Notificación técnica en errores críticos
-
----
-
-## 📊 Métricas de Performance
-
-**Targets actuales**:
-- Tiempo de respuesta (texto): < 5 segundos
-- Tiempo de respuesta (voz): < 15 segundos
-- Uptime: > 99%
-- Tasa de éxito de respuestas: > 95%
-
-**Monitoreo**:
-- ❌ No implementado (ver [ISSUES.md #005](ISSUES.md))
-
----
-
-## 🔍 Puntos de Mejora Identificados
-
-Ver análisis completo en:
-- **[MESSAGE_PROCESSING.md](MESSAGE_PROCESSING.md)**: Optimización de procesamiento
-- **[ISSUES.md](ISSUES.md)**: Lista completa de mejoras
+| Servicio | Uso |
+|---------|-----|
+| OpenAI | GPT-4.1 (Agente) + Whisper (transcripción) |
+| Chatwoot | Obtener etiquetas + enviar mensajes |
+| Airtable | CRM (3 herramientas) |
+| Supabase | Vector Store (base de conocimiento) |
+| PostgreSQL | Chat Memory (historial de conversación) |
+| Google Sheets | Reporte de preguntas sin respuesta |
+| Slack | Escalación humana (subworkflow) |
+| Gmail | Notificación de errores de Chatwoot |
 
 ---
 
@@ -710,6 +277,6 @@ Ver análisis completo en:
 
 ---
 
-**Última actualización**: 5 de Marzo 2026
-**Versión de arquitectura**: v1.2
+**Última actualización**: 15 de Marzo 2026
+**Versión de arquitectura**: v1.5.1
 **Documentado por**: Claude AI + NicoCalama

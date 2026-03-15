@@ -1,8 +1,23 @@
-# Atankalama — Asistente Virtual WhatsApp
+# Atankalama — Automatizaciones n8n
+
+Workflows de automatización para Hotel Atankalama, desarrollados sobre n8n self-hosted (EasyPanel).
+
+---
+
+## Workflows activos
+
+| Workflow | Estado | Versión |
+|---|---|---|
+| Asistente Virtual WhatsApp | Activo en producción | v1.5.1 (13 Mar 2026) |
+| Recolector de Precios Hoteleros | Activo en producción | v1.1.0 (15 Mar 2026) |
+
+---
+
+## Asistente Virtual WhatsApp
 
 Bot de IA que atiende automáticamente a los clientes del Hotel Atankalama por WhatsApp, las 24 horas. El cliente escribe o manda un audio, y el bot responde en segundos usando información real del hotel, el historial de la conversación y el CRM.
 
-**Estado**: Activo en producción — v1.4.1 (7 Marzo 2026)
+**Estado**: Activo en producción — v1.5.1 (13 Marzo 2026)
 **Workflow ID en n8n**: `s9A9Al67_R0wSQWf_HY3X`
 
 ---
@@ -64,7 +79,7 @@ Respuesta enviada al cliente via Chatwoot
 | CRM | Airtable |
 | Acumulación de mensajes | Redis |
 | Preguntas sin respuesta | Google Sheets |
-| Escalación humana | Gmail |
+| Escalación humana | Slack + Chatwoot (etiqueta "humano") |
 
 ---
 
@@ -166,10 +181,28 @@ Credenciales utilizadas: OpenAI, Chatwoot, Airtable, Supabase, PostgreSQL, Googl
 
 | Versión | Fecha | Descripción |
 |---|---|---|
-| v1.4.1 | 7 Mar 2026 | Fix: prompt sin `promptType`, Think visible en respuestas, nombre en email de escalación |
+| v1.5.1 | 13 Mar 2026 | Fix: doble presentación y saludo incorrecto mid-conversación |
+| v1.5.0 | 8 Mar 2026 | Escalación humana vía Slack + Chatwoot (subworkflow) |
+| v1.4.1 | 7 Mar 2026 | Fix: prompt sin `promptType`, Think visible en respuestas |
 | v1.4.0 | 7 Mar 2026 | Rediseño completo del prompt (Think-first, -70% tokens) |
 | v1.3.0 | 6 Mar 2026 | Auditoría técnica completa, arquitectura verificada |
 | v1.0.0 | Feb 2026 | Lanzamiento inicial |
+
+---
+
+## Recolector de Precios Hoteleros
+
+Workflow automatizado que monitorea semanalmente los precios de la competencia en Booking.com. Genera un reporte estratégico con análisis de Claude AI y lo envía por email al equipo de ventas.
+
+**Estado**: Activo en test — v1.0.0 (15 Marzo 2026)
+**Docs**: [docs/n8n_Recolector de informacion Hoteles calama/](docs/n8n_Recolector%20de%20informacion%20Hoteles%20calama/)
+
+| Workflow | ID n8n | Estado |
+|---|---|---|
+| A — Scraping Semanal | `QBDVpsKWGTHZZikE` | Activo, MODO TEST (2 hoteles, 21 iters) |
+| Subworkflow — Análisis y Reporte | `YXDogRLJrprijeiV` | Activo, 21 nodos, listo para test |
+| B — Disparador Manual | `SbI0cfUlQvtLWvxZ` | Activo |
+| C — Agente Slack DM | pendiente | — |
 
 ---
 
