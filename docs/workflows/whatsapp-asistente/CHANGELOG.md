@@ -7,6 +7,85 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.5.4] - 2026-03-17
+
+### Fix: Subworkflow escalación — valores nulos, claves con espacios, credenciales y mensaje Slack
+
+#### Problemas resueltos
+
+**Bug: Valores nulos en subworkflow trigger (`Resumen_conversacion` / `Id_Conversacion_Chatwoot`)**
+- Causa: `$fromAI()` falla silenciosamente en n8n v2.3.6 cuando se usa dentro de `workflowInputs.value` en nodos `toolWorkflow`. Los valores llegaban como `null` al trigger del subworkflow.
+- Fix: Expresiones en el trigger cambiadas a `$json.query?.Resumen_conversacion ?? $json.Resumen_conversacion ?? 'Sin resumen'` para leer directamente del `$json` que entrega n8n en su lugar.
+
+**Bug: Error "Invalid parameter key" — claves con espacios en toolWorkflow**
+- Causa: Los keys `"Resumen conversacion"` y `"Id Conversacion Chatwoot"` tienen espacios, lo cual es inválido en n8n v2.3.6 para inputs de toolWorkflow.
+- Fix: Renombradas a `Resumen_conversacion` e `Id_Conversacion_Chatwoot` (underscore) en ambos workflows:
+  - Nodo "Contactar Humano" (flujo principal) → `workflowInputs`
+  - Subworkflow: `ExecuteWorkflowTrigger`, `Edit Fields`, nodo Slack, URL Chatwoot
+
+**Bug: Credenciales perdidas en nodos tras updateNode via MCP**
+- Causa: `n8n_update_partial_workflow → updateNode` con `updates.parameters` reemplaza el objeto `parameters` completo, eliminando las credenciales vinculadas.
+- Afectó: "Enviar Respuesta" (Chatwoot HTTP), "Mensaje de error de Chatwoot" (Gmail), "Contactar Humano" (toolWorkflow).
+- Fix: Restaurar credenciales en paso separado con `updates.credentials`, y siempre incluir todos los campos de `parameters` en un solo update.
+
+**Bug: Mensaje Slack con texto duplicado / formato HTML**
+- Causa: Nodo Slack en Block Kit con `text` fallback mostraba el texto plano duplicado. Previsualización devolvía HTML en vez del mensaje formateado.
+- Fix: Cambiado a **Simple Text Message** con texto plano + iconos:
+  ```
+  🚨 *Solicitud de atención humana — WhatsApp*
+  👤 *Resumen:* {{ $json['Resumen_conversacion'] }}
+  💬 Abrir chat: https://app.chatwoot.com/app/accounts/150504/conversations/{{ $json['Id_Conversacion_Chatwoot'] }}
+  ```
+
+**Bug: URL Chatwoot con `=` literal en parámetro JSON**
+- Causa: El campo URL tenía `"=https://..."` — el `=` dentro de un string JSON es literal, no prefijo de expresión n8n.
+- Fix: Eliminado el `=` inicial de la URL.
+
+#### Estado final del subworkflow (`K3WrelHxg7k9EePiD5-2S`)
+- Flujo: Trigger → Edit Fields → Slack (texto plano) → Chatwoot (custom_attribute humano) ✅
+- Probado en producción: Slack recibe mensaje con resumen e ID de conversación ✅
+
+---
+
+## [1.5.3] - 2026-03-16
+
+### Fix: Bot inventaba reservas en vez de enviar link de Cloudbeds
+
+#### Problema resuelto
+
+**Bug: El bot decía "ya está preparada tu reserva" sin enviar el link**
+- Causa: La instrucción `Llama "Crear / Actualizar contacto"` al final de la sección PRECIO/RESERVA era interpretada por el modelo como "completar el registro de la reserva". El bot nunca entregaba el link de Cloudbeds y fingía haber hecho una reserva que no existe.
+- Fix 1: Se aclaró que `"Crear / Actualizar contacto"` solo registra interés en el CRM — no crea ninguna reserva.
+- Fix 2: Se marcó la entrega del link Cloudbeds como OBLIGATORIA y nunca omitible.
+- Fix 3: Prohibición explícita: `NUNCA digas que "preparaste", "creaste" o "registraste" una reserva`.
+- Fix 4: Agregado ejemplo de referencia correcto para consultas de reserva (con link, sin afirmar reserva creada).
+
+---
+
+## [1.5.2] - 2026-03-16
+
+### Fix: Email y teléfono proactivos — escalar a humano cuando falta información
+
+#### Problemas resueltos
+
+**Bug: El bot ofrecía `reservas@atankalama.com` sin que el cliente lo pidiera**
+- Causa: No existía regla explícita que prohibiera compartir datos de contacto del hotel proactivamente. El modelo los entregaba como "fallback" cuando no encontraba información.
+- Fix: Nueva regla en `LÍMITES` — el bot no puede inventar ni compartir teléfonos, emails ni datos de contacto; si el cliente los solicita y no están en "Base de datos", debe ofrecer contacto humano.
+
+**Bug: El bot inventó un número de teléfono que no existe en la base de datos**
+- Causa: El límite de "no inventes" solo cubría precios/disponibilidad/servicios, no datos de contacto.
+- Fix: La nueva regla de LÍMITES cubre explícitamente teléfonos y emails.
+
+**Bug: Ante preguntas sin respuesta, el bot daba el email en vez de escalar**
+- Causa: La sección `PREGUNTA SIN RESPUESTA` indicaba ofrecer contacto humano, pero no prohibía explícitamente el email como alternativa — el modelo lo agregaba por cuenta propia.
+- Fix: Agregada línea final en esa sección: `NUNCA sugieras email ni teléfono como alternativa — solo el contacto humano.`
+
+#### Prompt actualizado (v1.5.2)
+- `PREGUNTA SIN RESPUESTA`: nueva línea de cierre que prohíbe sugerir email/teléfono
+- `LÍMITES`: nueva regla sobre datos de contacto del hotel
+
+---
+
 ## [1.5.1] - 2026-03-13
 
 ### Fix: Doble presentación y saludo incorrecto mid-conversación
@@ -278,6 +357,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 13 de Marzo 2026
-**Versión actual**: v1.5.1
+**Última actualización**: 17 de Marzo 2026
+**Versión actual**: v1.5.4
 **Mantenedores**: NicoCalama + Claude AI Assistant

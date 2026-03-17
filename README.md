@@ -8,8 +8,8 @@ Workflows de automatización para Hotel Atankalama, desarrollados sobre n8n self
 
 | Workflow | Estado | Versión |
 |---|---|---|
-| Asistente Virtual WhatsApp | Activo en producción | v1.5.1 (13 Mar 2026) |
-| Recolector de Precios Hoteleros | Activo en producción | v1.1.0 (15 Mar 2026) |
+| Asistente Virtual WhatsApp | Activo en producción | v1.5.4 (17 Mar 2026) |
+| Recolector de Precios Hoteleros | Activo en producción | v1.2.0 (16 Mar 2026) |
 
 ---
 
@@ -17,7 +17,7 @@ Workflows de automatización para Hotel Atankalama, desarrollados sobre n8n self
 
 Bot de IA que atiende automáticamente a los clientes del Hotel Atankalama por WhatsApp, las 24 horas. El cliente escribe o manda un audio, y el bot responde en segundos usando información real del hotel, el historial de la conversación y el CRM.
 
-**Estado**: Activo en producción — v1.5.1 (13 Marzo 2026)
+**Estado**: Activo en producción — v1.5.4 (17 Marzo 2026)
 **Workflow ID en n8n**: `s9A9Al67_R0wSQWf_HY3X`
 
 ---
@@ -194,15 +194,15 @@ Credenciales utilizadas: OpenAI, Chatwoot, Airtable, Supabase, PostgreSQL, Googl
 
 Workflow automatizado que monitorea semanalmente los precios de la competencia en Booking.com. Genera un reporte estratégico con análisis de Claude AI y lo envía por email al equipo de ventas.
 
-**Estado**: Activo en test — v1.0.0 (15 Marzo 2026)
+**Estado**: Activo en producción — v1.2.0 (16 Marzo 2026)
 **Docs**: [docs/n8n_Recolector de informacion Hoteles calama/](docs/n8n_Recolector%20de%20informacion%20Hoteles%20calama/)
 
 | Workflow | ID n8n | Estado |
 |---|---|---|
-| A — Scraping Semanal | `QBDVpsKWGTHZZikE` | Activo, MODO TEST (2 hoteles, 21 iters) |
-| Subworkflow — Análisis y Reporte | `YXDogRLJrprijeiV` | Activo, 21 nodos, listo para test |
+| A — Scraping Semanal | `QBDVpsKWGTHZZikE` | Activo producción (7 hoteles, jueves 6AM) |
+| Subworkflow — Análisis y Reporte | `YXDogRLJrprijeiV` | Activo producción, 21 nodos ✅ |
 | B — Disparador Manual | `SbI0cfUlQvtLWvxZ` | Activo |
-| C — Agente Slack DM | pendiente | — |
+| C — Agente Market Intel (Slack DM) | `TlckRzWvHtO7QPGJ` | Activo producción ✅ |
 
 ---
 

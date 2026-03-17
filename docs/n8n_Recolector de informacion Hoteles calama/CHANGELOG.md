@@ -2,10 +2,30 @@
 
 ---
 
-## [Unreleased]
+## [v1.2.0] — 2026-03-16
 
-### Pendiente
-- **Workflow C** — Agente Slack DM: planificado, pendiente construir
+### Workflow C — Agente Market Intel (Slack DM) — ACTIVO
+
+**Bot dedicado "Atankalama Mercado"** — lanza el ciclo completo: Slack DM → IA → respuesta con datos reales.
+
+- **ID n8n**: `TlckRzWvHtO7QPGJ` | 9 nodos | Activo en producción
+- **Flujo**: `Slack Trigger` → `IF anti-loop` → `AI Agent (claude-sonnet-4-6)` → `Slack — Responder DM`
+- **3 herramientas** (`toolCode` v1.3 con `$fromAI()`):
+  - `consultar_precios_puntuales` — precios actuales por hotel
+  - `consultar_tendencia_historica` — historial por hotel desde una fecha
+  - `get_ultimo_snapshot` — último análisis estratégico semanal
+
+**Bug crítico resuelto — toolHttpRequest incompatible con n8n v2.3.6**:
+El nodo `toolHttpRequest` v1.1 lanza "Invalid URL" para cualquier URL en esta versión de n8n (bug del motor). Solución: reemplazar por `toolCode` con `$helpers.httpRequest()` y Supabase anon key embebida en código.
+
+**Slack App "Atankalama Mercado"**:
+- Scopes: `chat:write`, `im:history`, `im:read`, `im:write`
+- Events: `message.im` (DMs) + `message.channels` (canales)
+- Credencial n8n: `uKOVvZfS46uT8weR`
+
+**Schedule Workflow A**: cambiado a **jueves 6:00 AM** (era lunes — conflicto con reunión semanal de ventas).
+
+**Sticky notes**: rediseñadas en todos los workflows (A, B, C, Subworkflow) para lenguaje no técnico.
 
 ---
 
