@@ -2,6 +2,30 @@
 
 ---
 
+## [v1.3.0] — 2026-03-18
+
+### Workflow C — Agente inteligente: ventana de tiempo y escalabilidad
+
+**Problema**: El tool `consultar_precios_puntuales` no filtraba por `scrape_date` ni por fecha futura. Haiku recibía registros sold_out (17-18 marzo) antes que los datos válidos (19+) y concluía que no había información. A futuro, con meses de datos acumulados, la query devolvería cientos de registros obsoletos mezclados con los actuales.
+
+**Cambio 1 — `consultar_precios_puntuales` (nodo `wc-04-tool-precios`)**:
+- Doble query a Supabase:
+  1. Obtiene el `scrape_date` más reciente para el hotel
+  2. Filtra por ese scrape + `check_in_date >= hoy`
+- Resultado: siempre máximo ~21 registros relevantes (7 días × 3 tipos) sin importar cuántos datos históricos haya en la base
+- Escalabilidad garantizada — sin degradación con el tiempo
+
+**Cambio 2 — System message `wc-02-agent`**:
+- Agregada sección ESTRATEGIA DE CONSULTA con instrucciones explícitas:
+  - Pregunta general → analizar TODOS los registros, no detenerse en sold_out
+  - Pregunta específica → filtrar mentalmente al dato solicitado
+  - Pregunta de tendencia → usar `consultar_tendencia_historica`
+- Reforzada regla: nunca concluir "no hay datos" si hay registros con `availability='sold_out'`
+
+**Investigación**: Ventana táctica en hotelería = 3-7 días (revenue managers). Scraping captura 7 días hacia adelante — ventana correcta para consultas rápidas del equipo de ventas vía Slack.
+
+---
+
 ## [v1.2.0] — 2026-03-16
 
 ### Workflow C — Agente Market Intel (Slack DM) — ACTIVO

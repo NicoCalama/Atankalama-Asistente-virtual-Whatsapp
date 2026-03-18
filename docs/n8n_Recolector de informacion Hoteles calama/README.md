@@ -4,8 +4,8 @@
 
 Workflow automatizado que monitorea semanalmente los precios de la competencia hotelera en Calama, Chile via Booking.com. Genera un reporte estratégico con análisis de IA (Claude) y lo envía por email al equipo de ventas.
 
-**Versión**: 1.1.0 (activo en producción — 15 Mar 2026)
-**Estado**: Todos los workflows activos. Primer reporte enviado exitosamente.
+**Versión**: 1.3.0 (activo en producción — 18 Mar 2026)
+**Estado**: Todos los workflows activos. Agente Slack con consulta inteligente por ventana temporal.
 **Proyecto independiente** — no tiene conexión con el workflow de WhatsApp Asistente.
 
 ---
