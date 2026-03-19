@@ -7,6 +7,38 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.5.5] - 2026-03-19
+
+### Mejora: Notificación Slack de escalación con motivo específico
+
+#### Problema resuelto
+
+**Mensaje Slack de escalación siempre mostraba texto genérico**
+- Causa 1: Las instrucciones al agente decían "llama Contactar Humano con un resumen" sin especificar formato ni longitud — el agente generaba textos vagos como "Cliente solicitó atención humana".
+- Causa 2: El field `Resumen_conversacion` en el tool schema tenía `required: false`, lo que permitía al modelo omitirlo o rellenarlo con texto genérico.
+- Causa 3: El fallback en el tool (`$json.query?.Resumen_conversacion ?? ... ?? 'Cliente solicitó atención humana'`) activaba el texto hardcoded cuando el modelo no proveía el campo.
+
+**Fixes aplicados**:
+1. **System prompt** (`b6432bcb`): Las 2 instrucciones "Contactar Humano" ahora especifican explícitamente el formato y proveen ejemplos concretos:
+   - *"pasando Resumen_conversacion = máximo 20 palabras del motivo (ej: 'cliente solicita cotización para evento corporativo de 40 personas')"*
+2. **Tool schema** (`2964a976`): `Resumen_conversacion` → `required: true` + descripción con ejemplos del formato esperado.
+3. **Fallback mejorado**: Cuando el modelo no provee el campo, cae al último mensaje real del cliente (`$('Edit Fields').item.json['Mensaje']`) en vez del texto hardcoded genérico.
+4. **Slack message** (`K3WrelHxg7k9EePiD5-2S`):
+   - Agregado campo `📅 Fecha` con timestamp (mantenido de versión anterior)
+   - Etiqueta `👤 Motivo:` en vez de `👤 Resumen:`
+   - Link de Chatwoot como texto clicable `<url|texto>` con `unfurl_links: false` — elimina el preview de marketing de Chatwoot que aparecía bajo el mensaje
+   - Removido campo teléfono (no requerido por recepción)
+
+**Resultado**: Recepción recibe en Slack un mensaje como:
+```
+🚨 Solicitud de atención humana — WhatsApp
+📅 Fecha: 19/03/2026 14:35 hrs
+👤 Motivo: cliente solicita cotización para evento corporativo de 40 personas
+💬 Abrir conversación en Chatwoot
+```
+
+---
+
 ## [1.5.4] - 2026-03-17
 
 ### Fix: Subworkflow escalación — valores nulos, claves con espacios, credenciales y mensaje Slack

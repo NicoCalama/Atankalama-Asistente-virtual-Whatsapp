@@ -1,8 +1,8 @@
 # Atankalama Asistente Virtual WhatsApp
 
-**Versión actual**: v1.4.1
+**Versión actual**: v1.5.5
 **Estado**: Activo en producción
-**Última verificación**: 7 de Marzo 2026
+**Última verificación**: 19 de Marzo 2026
 **Workflow ID en n8n**: `s9A9Al67_R0wSQWf_HY3X`
 
 ---
