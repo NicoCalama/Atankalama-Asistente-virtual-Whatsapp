@@ -7,6 +7,58 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [2.0.0-dev] - 2026-03-20
+
+### Fase 2 — Arquitectura Multi-Agente (en desarrollo)
+
+#### Contexto
+
+El agente monolítico v1.5.x (GPT-4.1 + 7 herramientas en un solo workflow) funciona bien en producción pero tiene límites de escala: cada nueva capacidad suma complejidad al prompt y carga al único LLM. La Fase 2 introduce un **orquestador + sub-agentes especializados** para separar responsabilidades.
+
+**v1.5.x sigue activo en producción** mientras se construye y valida v2.0 en paralelo.
+
+#### Arquitectura nueva
+
+```
+Orquestador (GPT-4.1)
+  ├─ FAQ_Agent ─────► Sub-WF: Claude Haiku + Supabase Vector Store
+  ├─ CRM_Agent ─────► Sub-WF: Claude Haiku + Airtable
+  ├─ Pricing_Agent ─► Sub-WF: Claude Haiku + Cloudbeds API (fase 2B)
+  ├─ Contactar_Humano ► Sub-WF existente (K3WrelHxg7k9EePiD5-2S)
+  ├─ reporte_preguntas ► Google Sheets (directo)
+  └─ registrar_feedback ► Airtable (directo)
+```
+
+#### Estado actual — Fases 2A + 2B + 2C completadas
+
+**Workflows creados (inactivos, paralelos a producción):**
+
+| Workflow | ID | Estado |
+|---|---|---|
+| FAQ Agent - Atankalama v2.0 | `Mq8XkIXWvZIyF2sZ` | Creado ✅, validado ✅ |
+| CRM Agent - Atankalama v2.0 | `LPeOJLQadME2Nbgv` | Creado ✅, validado ✅ |
+| Pricing Agent - Atankalama v2.0 | `X22IjZoUYkFxKyjw` | Creado ✅, validado ✅ |
+| Orquestador WhatsApp v2.0 | `KyWsxQJhr1SS0mS3` | Creado ✅, validado ✅ |
+
+#### Decisiones técnicas
+
+- **Sub-agentes**: Claude Haiku (`nY5IaQTAreX8ULxT`) — barato, rápido, credenciales ya activas
+- **Orquestador**: GPT-4.1 — razonamiento fuerte para routing y síntesis
+- **Memoria**: solo en el orquestador (PostgreSQL Chat Memory), sub-agentes son stateless
+- **Escalación + feedback**: herramientas directas del orquestador (no necesitan LLM propio)
+- **Pricing Agent**: Cloudbeds API real (credencial `9ubhJlDJWQpKaJHE`, Header Auth x-api-key) — base para fase 3 (reservas + cobros)
+- **Workarounds n8n v2.3.6 aplicados**: `inputSource: "workflowInputs"`, `$('Trigger').item.json.campo` en lugar de `$fromAI()` en workflowInputs, `toolDescription` en toolVectorStore v1.1, `toolCode` con `$helpers.httpRequest()` en lugar de `toolHttpRequest` (crashea en v2.3.6)
+- **Ciclo Redis**: validator reporta "infinite loop" en Switch4 → Espera 4s → Redis6 → Switch4 — es intencional (acumulación de mensajes), idéntico a v1.5.5 producción
+
+#### Pendiente
+
+- Fase 2D: Testing manual con webhook de prueba + período piloto (filtro por teléfono)
+- Cutover: desactivar v1.5.5, activar v2.0
+
+Ver detalles de arquitectura en [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md).
+
+---
+
 ## [1.5.5] - 2026-03-19
 
 ### Mejora: Notificación Slack de escalación con motivo específico
@@ -389,6 +441,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 17 de Marzo 2026
-**Versión actual**: v1.5.4
+**Última actualización**: 20 de Marzo 2026
+**Versión producción**: v1.5.5 | **En desarrollo**: v2.0.0-dev
 **Mantenedores**: NicoCalama + Claude AI Assistant

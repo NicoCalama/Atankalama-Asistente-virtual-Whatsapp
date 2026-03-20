@@ -91,6 +91,21 @@ El agente razona internamente con la herramienta Think antes de responder. Ese r
 
 ---
 
+## Fase 2 — En desarrollo (v2.0)
+
+La Fase 2 reemplazará el agente monolítico por una arquitectura multi-agente. **v1.5.5 sigue activo en producción** mientras se construye y valida la nueva arquitectura en paralelo.
+
+| Sub-agente | ID Workflow | Estado |
+|---|---|---|
+| FAQ Agent | `Mq8XkIXWvZIyF2sZ` | Creado y validado ✅ |
+| CRM Agent | `LPeOJLQadME2Nbgv` | Creado y validado ✅ |
+| Pricing Agent | — | Pendiente API Cloudbeds |
+| Orquestador v2.0 | — | Pendiente |
+
+Ver arquitectura completa en [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md).
+
+---
+
 ## Documentación disponible
 
 | Documento | Contenido |
@@ -98,7 +113,8 @@ El agente razona internamente con la herramienta Think antes de responder. Ese r
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Guía de problemas comunes y cómo resolverlos. **Empezar aquí si algo falla.** |
 | [CHANGELOG.md](CHANGELOG.md) | Historial completo de versiones y cambios |
 | [ISSUES.md](ISSUES.md) | Bugs conocidos, estado y soluciones aplicadas |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Detalle técnico de cada nodo |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Detalle técnico de cada nodo (v1.5.x) |
+| [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md) | Arquitectura multi-agente v2.0 (en desarrollo) |
 | [PROMPT.md](PROMPT.md) | Análisis del prompt del agente |
 
 ---
