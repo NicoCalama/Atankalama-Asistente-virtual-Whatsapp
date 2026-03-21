@@ -21,28 +21,29 @@ El agente monolítico v1.5.x (GPT-4.1 + 7 herramientas en un solo workflow) func
 
 ```
 Orquestador (GPT-4.1)
-  ├─ FAQ_Agent ─────► Sub-WF: Claude Haiku + Supabase Vector Store
-  ├─ CRM_Agent ─────► Sub-WF: Claude Haiku + Airtable
-  ├─ Pricing_Agent ─► Sub-WF: Claude Haiku + Cloudbeds API (fase 2B)
+  ├─ FAQ_Agent ─────► Sub-WF: GPT-4o-mini + Supabase Vector Store
+  ├─ CRM_Agent ─────► Sub-WF: GPT-4o-mini + Airtable
+  ├─ Pricing_Agent ─► Sub-WF: GPT-4o-mini + Cloudbeds API
   ├─ Contactar_Humano ► Sub-WF existente (K3WrelHxg7k9EePiD5-2S)
   ├─ reporte_preguntas ► Google Sheets (directo)
   └─ registrar_feedback ► Airtable (directo)
 ```
 
-#### Estado actual — Fases 2A + 2B + 2C completadas
+#### Estado actual — Fases 2A + 2B + 2C completadas, Testing en curso
 
-**Workflows creados (inactivos, paralelos a producción):**
+**Workflows creados (activos, paralelos a producción):**
 
 | Workflow | ID | Estado |
 |---|---|---|
-| FAQ Agent - Atankalama v2.0 | `Mq8XkIXWvZIyF2sZ` | Creado ✅, validado ✅ |
-| CRM Agent - Atankalama v2.0 | `LPeOJLQadME2Nbgv` | Creado ✅, validado ✅ |
-| Pricing Agent - Atankalama v2.0 | `X22IjZoUYkFxKyjw` | Creado ✅, validado ✅ |
-| Orquestador WhatsApp v2.0 | `KyWsxQJhr1SS0mS3` | Creado ✅, validado ✅ |
+| FAQ Agent - Atankalama v2.0 | `Mq8XkIXWvZIyF2sZ` | Creado ✅, funcional ✅ |
+| CRM Agent - Atankalama v2.0 | `LPeOJLQadME2Nbgv` | Creado ✅, funcional ✅ |
+| Pricing Agent - Atankalama v2.0 | `X22IjZoUYkFxKyjw` | Creado ✅, funcional ✅ |
+| Orquestador WhatsApp v2.0 | `KyWsxQJhr1SS0mS3` | Creado ✅, funcional ✅ |
+| TEST Sub-Agentes v2 | `4YvYOs5lmiQpgIfc` | Creado ✅ (webhook: `test-subagentes-v2`) |
 
 #### Decisiones técnicas
 
-- **Sub-agentes**: Claude Haiku (`nY5IaQTAreX8ULxT`) — barato, rápido, credenciales ya activas
+- **Sub-agentes**: GPT-4o-mini (`PFi2O7hEC5a75nv7`) — más barato que Haiku (~40-52% menos por token), sin bugs de credenciales en sub-nodos
 - **Orquestador**: GPT-4.1 — razonamiento fuerte para routing y síntesis
 - **Memoria**: solo en el orquestador (PostgreSQL Chat Memory), sub-agentes son stateless
 - **Escalación + feedback**: herramientas directas del orquestador (no necesitan LLM propio)
@@ -50,9 +51,25 @@ Orquestador (GPT-4.1)
 - **Workarounds n8n v2.3.6 aplicados**: `inputSource: "workflowInputs"`, `$('Trigger').item.json.campo` en lugar de `$fromAI()` en workflowInputs, `toolDescription` en toolVectorStore v1.1, `toolCode` con `$helpers.httpRequest()` en lugar de `toolHttpRequest` (crashea en v2.3.6)
 - **Ciclo Redis**: validator reporta "infinite loop" en Switch4 → Espera 4s → Redis6 → Switch4 — es intencional (acumulación de mensajes), idéntico a v1.5.5 producción
 
+#### Cambios post-creación (misma fecha)
+
+**Migración de modelos — Haiku → GPT-4o-mini en sub-agentes**
+- Motivo: GPT-4o-mini es ~40-52% más barato que Claude Haiku 3 (input: $0.15 vs $0.25/1M, output: $0.60 vs $1.25/1M), y evita el bug `notice` de `lmChatAnthropic` v1.3 en n8n v2.3.6.
+- Afectó: `Anthropic Haiku (Agent)` en FAQ, `Anthropic Haiku (CRM)` en CRM, `Anthropic Haiku (Pricing)` en Pricing — reemplazados por `OpenAI GPT-4o-mini` en los tres workflows.
+- Credencial usada: `PFi2O7hEC5a75nv7` (misma que embeddings y Drive-to-Supabase).
+
+**Bug retriever FAQ Agent — `lmChatAnthropic` v1.3 en toolVectorStore**
+- Causa: `lmChatAnthropic` typeVersion 1.3 inyecta automáticamente `notice: ""` en sus parámetros. En contexto de sub-nodo (`getInputConnectionData`), este parámetro extra lanza `"Could not get parameter"` al intentar recuperar documentos del vector store.
+- Fix: Reemplazado `Anthropic Haiku (Retriever)` por `OpenAI GPT-4o-mini (Retriever)` en el nodo `toolVectorStore` del FAQ Agent — idéntico al enfoque de producción v1.5.5.
+
+**Prompt FAQ Agent — reescritura**
+- Prompt anterior (demasiado restrictivo): respondía `NO_INFO` incluso cuando había datos en Supabase, porque la instrucción "responde exactamente: NO_INFO" suprimía cualquier elaboración.
+- Prompt nuevo: extraído y adaptado del prompt de producción v1.5.5 (`b6432bcb`), manteniendo solo la sección de consultas a "Base de datos". Instrucción corregida: `NO_INFO` solo si realmente no se encuentra información. Límite: no mencionar precios ni CRM (los maneja el orquestador).
+- También corregido: nombre de tabla Supabase `faq_antankalama` → `faq_atankalama` (typo, corregido manualmente en UI).
+
 #### Pendiente
 
-- Fase 2D: Testing manual con webhook de prueba + período piloto (filtro por teléfono)
+- Fase 2D: Período piloto con filtro por número de teléfono
 - Cutover: desactivar v1.5.5, activar v2.0
 
 Ver detalles de arquitectura en [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md).
@@ -441,6 +458,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 20 de Marzo 2026
+**Última actualización**: 20 de Marzo 2026 (migración modelos sub-agentes)
 **Versión producción**: v1.5.5 | **En desarrollo**: v2.0.0-dev
 **Mantenedores**: NicoCalama + Claude AI Assistant
