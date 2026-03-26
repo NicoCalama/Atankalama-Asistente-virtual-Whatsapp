@@ -7,6 +7,132 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.6.1] - 2026-03-26
+
+### Fix: Resumen Slack solo mostraba último mensaje + preguntas parciales no registradas
+
+#### Problema 1: Resumen en Slack era solo el último mensaje del cliente
+
+**Contexto**: Al escalar a recepción vía "Contactar Humano", el mensaje en Slack (campo "Motivo") mostraba solo el último mensaje del cliente (ej: "Sí, por favor") en vez de un resumen de toda la conversación.
+
+**Causa raíz**:
+1. El schema del tool "Contactar Humano" (`2964a976`) pedía "Máximo 20 palabras explicando por qué necesita atención humana" — demasiado breve y orientado al motivo, no al resumen.
+2. El prompt del Agente IA no especificaba formato ni longitud del resumen, ni prohibía enviar solo el último mensaje.
+3. Cuando el LLM no proporcionaba `Resumen_conversacion`, el fallback caía a `$('Edit Fields').item.json['Mensaje']` que es solo el mensaje actual.
+
+**Fixes aplicados**:
+1. **Tool schema** (`2964a976`): `Resumen_conversacion` description cambiada a "Resumen completo de la conversación (40-80 palabras). Incluye: 1) Qué consultó el cliente desde el inicio. 2) Qué información se le entregó. 3) Por qué necesita atención humana ahora." + ejemplo concreto.
+2. **System prompt** (`b6432bcb`): Nueva sección "CÓMO USAR Contactar Humano — RESUMEN OBLIGATORIO" con ejemplo correcto vs incorrecto. Regla: NUNCA enviar solo el último mensaje.
+
+#### Problema 2: Pregunta con respuesta parcial no se registraba en Excel
+
+**Contexto**: Roberto preguntó "¿cuentan con servicio de desayuno buffet?". El agente consultó "Base de datos", encontró "desayuno incluido" (sin especificar tipo), respondió correctamente que no sabía si era buffet y ofreció contacto humano — pero NO llamó "reporte de preguntas sin respuesta" para registrar la pregunta en el Excel.
+
+**Causa raíz**: El prompt decía "PREGUNTA SIN RESPUESTA EN Base de datos → Llama reporte". El agente encontró una respuesta *parcial* (sí hay desayuno) y no la interpretó como "sin respuesta", por lo que no activó el reporte.
+
+**Ejecución analizada**: #2152 (26 Mar 2026, 14:54) — nodos ejecutados: Consultar contactos ✅, Base de datos ✅, reporte de preguntas sin respuesta ❌ (no ejecutado).
+
+**Fixes aplicados**:
+1. **System prompt** (`b6432bcb`): Sección renombrada a "PREGUNTA SIN RESPUESTA **O CON RESPUESTA PARCIAL**". Nueva regla: si la respuesta encontrada es incompleta y no responde exactamente lo que el cliente preguntó, también debe llamar al reporte.
+2. **Nuevo ejemplo en prompt**: Caso concreto del desayuno buffet como referencia para el LLM.
+
+#### Nodos modificados
+
+| Nodo | ID | Cambio |
+|------|-----|--------|
+| Contactar Humano | `2964a976-4304-41a8-ba67-703a9f13912b` | Schema description ampliado (20→40-80 palabras, con ejemplo) |
+| Agente IA | `b6432bcb-0ded-4e43-aeec-169cdf3eac97` | +3 secciones en prompt: resumen obligatorio, respuesta parcial, ejemplo buffet |
+
+---
+
+## [2.0.0-dev] - 2026-03-23 (multi-credencial + precisión datos + Fase 3 diseño)
+
+### Multi-credencial Cloudbeds (Pricing Sub-workflow)
+
+#### Cambiado
+- **Routing por hotel**: Nodo `If Hotel Inn` separa flujo en 2 ramas, cada una con su propia credencial Header Auth (Atankalama / Atankalama Inn)
+- **4 HTTP Request** (2 por rama) en vez de 2 compartidos — evita problema de credencial única
+- **3 Merge nodes**: Merge Atk + Merge Inn (combineByPosition) + Merge Final (append)
+- **Code Formatear**: detecta rama activa vía try/catch, no muestra cantidades exactas de habitaciones
+- **LLM Chain prompt**: instrucción de nunca mencionar cantidades exactas, siempre incluir link como fuente de verdad
+- **Edit Fields**: agrega `startDate`/`endDate` (extraídos de `fechas_mencionadas` o default hoy/mañana)
+- **Total nodos**: 13 (antes 8)
+
+#### Agregado
+- Nodo `If Hotel Inn` (routing por propiedad)
+- Nodos HTTP duplicados por rama (getRoomTypes/getRatePlans × 2)
+- Merge Inn + Merge Final
+- Campo `hotel` como `required: true` en tool del orquestador
+
+### Precisión de datos de disponibilidad
+
+#### Investigado
+- `getRoomTypes.roomsAvailable` = solo fecha actual, no acepta parámetros de fecha
+- `getRatePlans.roomsAvailable` = por rate plan, no total de habitaciones reales
+- `getAvailableRoomTypes` (v1.3) = retorna vacío para habitaciones `isPrivate: true`
+- Dashboard Cloudbeds puede mostrar 10 disponibles mientras API muestra 0
+
+#### Cambiado
+- Code node usa "disponible" / "disponibilidad limitada" en vez de números exactos
+- LLM Chain nunca dice cantidades, siempre apunta al link de reserva
+- Link de reserva es la fuente de verdad para disponibilidad exacta
+
+### Prompt del Orquestador
+
+#### Cambiado
+- Normalización obligatoria de `hotel` → `"atankalama"` o `"atankalama_inn"` antes de llamar Pricing
+- Si hotel no está claro, preguntar al cliente antes de llamar al sub-agente
+- Sección CUANDO LLAMES SUB-AGENTES actualizada con campos y valores exactos
+
+### Fase 3 — Diseño Pre-Reserva (documentado, no implementado)
+
+#### Documentado
+- Patrón: POST /postReservation (pending) → link de pago → confirmación/cancelación
+- Pre-reserva valida disponibilidad real y bloquea habitación durante pago
+- Flujo determinístico (no agente) para operaciones financieras
+- Prerequisito: investigar `isPrivate` antes de implementar
+- Arquitectura documentada en ARCHITECTURE_V2.md
+
+### Decisión Arquitectónica — Agente vs Flujo vs LLM Chain
+
+| Situación | Solución |
+|-----------|----------|
+| Datos listos, solo interpretar/formatear | LLM Chain (Pricing) |
+| Pasos fijos, operaciones críticas (dinero) | Flujo determinístico (Reservation, Fase 3) |
+| Debe elegir entre herramientas según contexto | Agente (FAQ, CRM) |
+
+---
+
+## [2.0.0-dev] - 2026-03-21 (refactor Pricing + prompt orquestador)
+
+### Refactor Pricing Sub-workflow
+
+#### Cambiado
+- **Pricing Agent → LLM Chain**: Reemplazado nodo Agent (con toolCode) por flujo determinístico: HTTP Request nativos + Code + LLM Chain (GPT-4o-mini)
+- **Endpoints Cloudbeds corregidos**: `GET /getRoomTypes` y `GET /getRatePlans` (los anteriores `/rooms`, `/availability`, `/rates` no existían)
+- **Multi-propiedad**: Soporte para Atankalama (209760) y Atankalama Inn (209761) via Edit Fields → propertyID
+- **API key segura**: Migrada de hardcoded en toolCode a credencial Header Auth nativa
+- **Link pre-llenado**: URL de reserva con `?currency=CLP&checkin=...&checkout=...&adults=...` para que el cliente solo confirme y pague
+
+#### Eliminado
+- Nodo `consultar_disponibilidad` (toolCode con endpoint inexistente)
+- Nodo `Calculadora` (toolCalculator, innecesario con datos pre-procesados)
+- Nodo `Pricing Agent` (Agent v1.7, reemplazado por LLM Chain)
+
+#### Agregado
+- `Edit Fields - Resolver Hotel` (hotel → propertyID, link, moneda por teléfono)
+- `HTTP getRoomTypes` + `HTTP getRatePlans` (paralelo, con Header Auth)
+- `Merge` (combineByPosition) + `Code - Formatear Disponibilidad`
+- `LLM Chain - Pricing` (interpreta datos + formatea respuesta natural)
+
+### Prompt del Orquestador
+
+#### Cambiado
+- Sección PRECIO/DISPONIBILIDAD/RESERVA: recopilación natural (sin formulario), confirmación antes de consultar, manejo de "sin disponibilidad" con alternativas
+- Sección CUANDO LLAMES SUB-AGENTES: actualizada para reflejar campos del Pricing sub-workflow
+
+---
+
 ## [2.0.0-dev] - 2026-03-20
 
 ### Fase 2 — Arquitectura Multi-Agente (en desarrollo)
@@ -67,9 +193,22 @@ Orquestador (GPT-4.1)
 - Prompt nuevo: extraído y adaptado del prompt de producción v1.5.5 (`b6432bcb`), manteniendo solo la sección de consultas a "Base de datos". Instrucción corregida: `NO_INFO` solo si realmente no se encuentra información. Límite: no mencionar precios ni CRM (los maneja el orquestador).
 - También corregido: nombre de tabla Supabase `faq_antankalama` → `faq_atankalama` (typo, corregido manualmente en UI).
 
+**Contexto enriquecido para sub-agentes (21 Mar 2026)**
+
+Decisión arquitectónica: **NO compartir memoria PostgreSQL** entre orquestador y sub-agentes. Se evaluaron 4 opciones (stateless, memoria R/W compartida, memoria read-only, contexto enriquecido). La memoria compartida R/W corrompe el historial (sub-agentes escriben respuestas internas que el cliente nunca vio). Read-only no es nativo en n8n v2.3.6. Solución elegida: **contexto enriquecido vía workflowInputs** — el orquestador pasa contexto específico a cada sub-agente según lo necesite.
+
+Cambios aplicados:
+- **FAQ Agent**: nuevo input `contexto_conversacion` (resumen breve para desambiguar consultas vagas). Prompt actualizado para usarlo.
+- **CRM Agent**: sin inputs nuevos — el agente consulta Airtable directamente para obtener contexto. Prompt reforzado: "usa datos de la consulta previa como contexto, no pidas lo que ya existe en el CRM".
+- **Pricing Agent**: nuevos inputs `fechas_mencionadas`, `num_huespedes`, `tipo_habitacion`. Prompt actualizado para usar parámetros directos sin volver a preguntar.
+- **Orquestador**: nueva sección `CUANDO LLAMES SUB-AGENTES` en el prompt (~80 tokens). `toolDescription` y `workflowInputs` con `$fromAI()` configurados en los 4 nodos toolWorkflow. Notas descriptivas agregadas a cada nodo toolWorkflow.
+
+**Seguridad y RGPD (21 Mar 2026)**
+- Nueva sección `SEGURIDAD Y PRIVACIDAD (RGPD)` en el prompt del orquestador: minimización de datos, prohibición de datos sensibles, derechos de acceso/supresión → Contactar_Humano, anti-prompt-injection.
+
 #### Pendiente
 
-- Fase 2D: Período piloto con filtro por número de teléfono
+- Fase 2D: Testing end-to-end + período piloto con filtro por número de teléfono
 - Cutover: desactivar v1.5.5, activar v2.0
 
 Ver detalles de arquitectura en [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md).
@@ -458,6 +597,6 @@ El agente incluía "Think: ..." como texto en sus respuestas al cliente porque e
 
 ---
 
-**Última actualización**: 20 de Marzo 2026 (migración modelos sub-agentes)
-**Versión producción**: v1.5.5 | **En desarrollo**: v2.0.0-dev
+**Última actualización**: 26 de Marzo 2026 (fix resumen Slack + reporte preguntas parciales)
+**Versión producción**: v1.6.1 | **En desarrollo**: v2.0.0-dev
 **Mantenedores**: NicoCalama + Claude AI Assistant
