@@ -1,7 +1,8 @@
-# Arquitectura v2.0 — Multi-Agente WhatsApp Atankalama
+# 🚧 BORRADOR — Arquitectura v2.0 — Multi-Agente WhatsApp Atankalama
 
-**Estado**: En desarrollo | **Fecha inicio**: 20 Mar 2026
-**Versión producción actual**: v1.5.5 (`s9A9Al67_R0wSQWf_HY3X`) — no modificado
+**Estado**: FASE 2 EN DESARROLLO | **Fecha inicio**: 20 Mar 2026 | **Testing**: En progreso
+**Versión producción actual**: v1.5.x (`s9A9Al67_R0wSQWf_HY3X`) — no modificado
+**Nota**: Los sub-agentes (FAQ, CRM, Pricing) están creados y validados. Orquestador en testing.
 
 ---
 
@@ -87,8 +88,8 @@ LÍMITES:
 **Contexto enriquecido**: El campo `contexto_conversacion` permite desambiguar consultas vagas ("y la otra?", "tienen algo más grande?"). El orquestador lo genera vía Think. Si la consulta es directa, lo envía vacío.
 
 **Credenciales**:
-- OpenAI: `PFi2O7hEC5a75nv7`
-- Supabase: `bFOo7cpHxcNnPXVD`
+- OpenAI: [Protegida]
+- Supabase: [Protegida]
 
 ---
 
@@ -117,8 +118,8 @@ Trigger (workflowInputs)
 **Nota importante**: El teléfono llega vía `$('Trigger').item.json.telefono` — NO usa `$fromAI()` en el campo de matching (workaround n8n v2.3.6).
 
 **Credenciales**:
-- OpenAI: `PFi2O7hEC5a75nv7`
-- Airtable: `vBen5N4o4rb9Ddnz`
+- OpenAI: [Protegida]
+- Airtable: [Protegida]
 
 ---
 
@@ -181,9 +182,9 @@ Trigger (workflowInputs)
 - `GET /getRatePlans` — tarifas por tipo (con `detailedRates=true`, `startDate`, `endDate`)
 
 **Credenciales**:
-- Cloudbeds Header Auth Atankalama: `[protegido]`
-- Cloudbeds Header Auth Atankalama Inn: `[protegido]`
-- OpenAI: `PFi2O7hEC5a75nv7`
+- Cloudbeds Header Auth Atankalama: [Protegida]
+- Cloudbeds Header Auth Atankalama Inn: [Protegida]
+- OpenAI: [Protegida]
 
 **Precisión de datos de disponibilidad**:
 - `getRoomTypes` no acepta parámetros de fecha — `roomsAvailable` es solo para hoy

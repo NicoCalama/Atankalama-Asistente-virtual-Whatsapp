@@ -77,6 +77,8 @@ Respuesta enviada de vuelta al cliente via Chatwoot
 
 ## Comportamiento del agente
 
+Ver especificación completa en **[AGENTS_SPEC.md](AGENTS_SPEC.md)** y **[PROMPT.md](PROMPT.md)**.
+
 El agente sigue este orden de prioridad:
 
 1. **Siempre primero**: llama "Consultar contactos" para saber con quién está hablando
@@ -95,12 +97,14 @@ El agente razona internamente con la herramienta Think antes de responder. Ese r
 
 La Fase 2 reemplazará el agente monolítico por una arquitectura multi-agente. **v1.5.5 sigue activo en producción** mientras se construye y valida la nueva arquitectura en paralelo.
 
-| Sub-agente | ID Workflow | Estado |
-|---|---|---|
-| FAQ Agent | `Mq8XkIXWvZIyF2sZ` | Creado y validado ✅ |
-| CRM Agent | `LPeOJLQadME2Nbgv` | Creado y validado ✅ |
-| Pricing Agent | — | Pendiente API Cloudbeds |
-| Orquestador v2.0 | — | Pendiente |
+| Sub-agente | ID Workflow | Completado | Estado |
+|---|---|---|---|
+| FAQ Agent | Mq8XkIXWvZIyF2sZ | ✅ 20 Mar | ✅ Validado |
+| CRM Agent | LPeOJLQadME2Nbgv | ✅ 20 Mar | ✅ Validado |
+| Pricing Agent | X22IjZoUYkFxKyjw | ✅ 20 Mar | ✅ Validado |
+| Orquestador | KyWsxQJhr1SS0mS3 | ✅ 20 Mar | ⏳ Testing |
+
+**Estado Fase 2**: 2A (FAQ + CRM) y 2B (Pricing) completadas. Testing piloto en progreso.
 
 Ver arquitectura completa en [ARCHITECTURE_V2.md](ARCHITECTURE_V2.md).
 

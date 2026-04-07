@@ -4,7 +4,9 @@ Documentación técnica detallada de la arquitectura, nodos y flujo de datos del
 
 **Workflow ID**: `s9A9Al67_R0wSQWf_HY3X`
 **Total de Nodos**: 40
-**Última auditoría**: 13 de Marzo 2026 — v1.5.1
+**Versión documentada**: v1.6.4
+**Última auditoría**: 6 de Abril 2026
+**Estado**: Activo en producción (v1.5.x)
 
 ---
 
@@ -77,9 +79,6 @@ CLIENTE (WhatsApp)
 **Memoria del agente**: Postgres Chat Memory (historial de conversacion)
 **Modelo LLM**: OpenAI Chat Model (GPT-4.1)
 
-**Memoria del agente**: Postgres Chat Memory (historial de conversacion)
-**Modelo LLM**: OpenAI Chat Model (GPT-4.1)
-
 **Notas**:
 - La línea de voz NO pasa por Redis — se procesa inmediatamente al llegar.
 - Redis wait: 4 segundos (cambiado de 12s para evitar timeout de Chatwoot).
@@ -106,10 +105,10 @@ When Executed by Another Workflow
 Edit Fields (mapea los inputs)
        │
        ▼
-Slack — Send a message (Block Kit)
+Slack — Send a message (Block Kit) [ACTUALIZADO v1.6.4]
   • Header: 🚨 Solicitud de atención humana — WhatsApp
-  • Sección: Resumen de la conversación
-  • Botón verde: 💬 Abrir chat en Chatwoot → link directo
+  • Nombre Cliente: {{ $json['Nombre Cliente'] }}
+  • Botón: 💬 Abrir conversación en Chatwoot → link directo
        │
        ▼
 Etiqueta Humano (HTTP Request → Chatwoot API)
@@ -121,7 +120,7 @@ Etiqueta Humano (HTTP Request → Chatwoot API)
 
 | Campo | Tipo | Origen |
 |---|---|---|
-| `Resumen conversacion` | string | Generado por el modelo (`$fromAI()`) |
+| `Nombre Cliente` | string | `$('Edit Fields4').item.json.name` desde Chatwoot |
 | `Id Conversacion Chatwoot` | string | `$('Webhook').item.json.body.data.chatwootConversationId` |
 
 ### Pendiente
@@ -242,8 +241,8 @@ Webhook → If → CHATWOOT Obtener Etiqueta → Filter
 
 ### Supabase (Vector Store)
 - Tabla: `knowledge_base` (información del hotel)
-- Credencial: `bFOo7cpHxcNnPXVD` ("Supabase account")
-- Proyecto: "Atankalama Corp" (ref: `zxzimlqrjnmigblulthg`)
+- Credencial: [Protegida] ("Supabase account")
+- Proyecto: "Atankalama Corp"
 
 ### Airtable (CRM)
 - Herramientas: Consultar / Crear / Actualizar contacto, registrar_feedback_encuesta
@@ -260,7 +259,7 @@ Todas las credenciales están en **n8n → Settings → Credentials**, nunca en 
 | OpenAI | GPT-4.1 (Agente) + Whisper (transcripción) |
 | Chatwoot | Obtener etiquetas + enviar mensajes |
 | Airtable | CRM (3 herramientas) |
-| Supabase | Vector Store (base de conocimiento) |
+| Supabase | [Protegida] — Vector Store (base de conocimiento) |
 | PostgreSQL | Chat Memory (historial de conversación) |
 | Google Sheets | Reporte de preguntas sin respuesta |
 | Slack | Escalación humana (subworkflow) |
@@ -277,6 +276,6 @@ Todas las credenciales están en **n8n → Settings → Credentials**, nunca en 
 
 ---
 
-**Última actualización**: 15 de Marzo 2026
-**Versión de arquitectura**: v1.5.1
+**Última actualización**: 6 de Abril 2026
+**Versión documentada**: v1.6.4 (v1.5.x en producción)
 **Documentado por**: Claude AI + NicoCalama
