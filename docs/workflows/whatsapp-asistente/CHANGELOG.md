@@ -7,6 +7,146 @@ Versionado siguiendo [Semantic Versioning](https://semver.org/lang/es/)
 
 ---
 
+## [1.6.4] - 2026-04-06
+
+### Fix: Simplificar notificación Slack de escalación — eliminar Motivo y Conversación, agregar Nombre Cliente
+
+**Cambios en subworkflow `K3WrelHxg7k9EePiD5-2S`**:
+
+| Cambio | Detalle |
+|--------|---------|
+| ❌ Eliminado | Nodo `Generar resumen` (chainLlm) — nunca produjo resúmenes útiles |
+| ❌ Eliminado | Campo "Motivo" en mensaje Slack |
+| ❌ Eliminado | Campo "Conversación" (historial completo) |
+| ✅ Agregado | Campo "Nombre Cliente" como referencia principal |
+
+**Trigger actualizado**:
+```
+Input: { Id_Conversacion_Chatwoot, Nombre Cliente }
+```
+
+**Nodo "Send a message" (Slack) — nuevo formato**:
+```
+🚨 *Solicitud de atención humana — WhatsApp*
+
+📅 *Fecha:* {{ $now.setZone('America/Santiago').toFormat('dd/MM/yyyy HH:mm') }} hrs
+👤 *Nombre:* {{ $json['Nombre Cliente'] }}
+
+💬 Abrir conversación en Chatwoot
+```
+
+**Cambios en workflow principal `s9A9Al67_R0wSQWf_HY3X`**:
+
+| Nodo | ID | Cambio |
+|------|-----|--------|
+| Contactar Humano | `2964a976-4304-41a8-ba67-703a9f13912b` | Ahora envía `Nombre Cliente` al subworkflow |
+
+**Motivación**: Simplificar la notificación Slack — el equipo de recepción necesita una referencia rápida del cliente (nombre), no un resumen LLM. El contexto completo está disponible en Chatwoot. El nombre es dato confiable desde Chatwoot (`contacts.name`).
+
+---
+
+## [1.6.3] - 2026-03-27
+
+### Feat: Resumen LLM 20 palabras como "subject" en notificación Slack (actualizado 28 Mar)
+
+**Actualización 28 Mar 2026**: Completado nodo `Generar resumen` con prompt funcional.
+
+#### Nodo "Generar resumen" (`b3c4d5e6-3333-4333-b333-000000000003`)
+
+| Parámetro | Valor |
+|-----------|-------|
+| **Tipo** | `@n8n/n8n-nodes-langchain.chainLlm` v1.4 |
+| **promptType** | `define` |
+| **text** | `={{ $json.historial }}` — recibe los últimos 10 mensajes del Code node |
+| **messages.messageValues[0].message** | System prompt con instrucciones (ver abajo) |
+| **Conexión LLM** | GPT-4o-mini (`b3c4d5e6-4444-4444-b444-000000000004`) vía `ai_languageModel` |
+| **maxTokens** | 60 (suficiente para 20 palabras) |
+
+**System prompt:**
+```
+Eres un especialista en resumir conversaciones de atención al cliente. Se te entregará
+el historial completo de una conversación entre un cliente de hotel y un agente virtual.
+
+Tu función es generar un resumen CONCISO (máximo 20 palabras) que le permita al
+recepcionista humano entender de inmediato:
+1. Qué problema o inquietud tiene el cliente
+2. Por qué el agente virtual no pudo resolverlo o necesita intervención humana
+
+Recuerda: El resumen es para dar CONTEXTO PREVIO al recepcionista antes de que abra
+la conversación completa en Chatwoot.
+```
+
+**Ejemplo de salida Slack:**
+```
+🚨 Solicitud de atención humana — WhatsApp
+
+📅 Fecha: 28/03/2026 20:28 hrs
+👤 Motivo: Cliente preguntó por desayuno buffet específico que agente no confirmó exactamente
+
+💬 Abrir conversación en Chatwoot
+```
+
+**Motivación**: El recepcionista necesita saber a qué va a enfrentarse antes de abrir Chatwoot. El historial completo está en Chatwoot (el "body"); el Slack solo necesita el "subject" — igual que el asunto de un email.
+
+#### Cambios en subworkflow `K3WrelHxg7k9EePiD5-2S`
+
+| Cambio | Detalle |
+|--------|---------|
+| +Nodo `Generar resumen` (`chainLlm` v1.4) | Prompt: "Resume en máximo 20 palabras el motivo por el que este cliente necesita atención humana." Recibe `$json.historial` desde Formatear mensajes |
+| +Nodo `GPT-4o-mini Resumen` (`lmChatOpenAi` v1.2) | Credencial `PFi2O7hEC5a75nv7`. `maxTokens: 60` |
+| Reconexión | Formatear mensajes → Generar resumen → Send a message |
+| Slack texto final | `📌 Motivo: {{ $json.output }}` + link Chatwoot. Sin historial en Slack (queda en Chatwoot) |
+
+**Flujo completo del subworkflow**:
+```
+When Executed → Edit Fields → Obtener historial (Postgres)
+→ Formatear mensajes (Code) → Generar resumen (chainLlm/GPT-4o-mini)
+→ Send a message (Slack) → Etiqueta Humano (Chatwoot)
+```
+
+**Formato Slack resultante**:
+```
+🚨 Solicitud de atención humana — WhatsApp
+
+📅 Fecha: 27/03/2026 15:20 hrs
+👤 Motivo: [20 palabras generadas por GPT-4o-mini]
+
+💬 Abrir conversación en Chatwoot
+```
+
+---
+
+## [1.6.2] - 2026-03-27
+
+### Fix: Historial Slack — reemplaza resumen LLM por historial real desde PostgreSQL
+
+**Causa raíz definitiva**: En n8n v2.3.6, `workflowInputs.value` de `toolWorkflow` evalúa expresiones en el contexto del **pipeline principal**, NO en el de los argumentos del LLM. Por eso `$json.query?.Resumen_conversacion` siempre era `undefined` y el fallback devolvía el último mensaje (`$('Edit Fields').item.json['Mensaje']`). `$fromAI()` tampoco funciona en este contexto (bug documentado).
+
+**Solución arquitectónica**: El subworkflow genera el historial directamente desde PostgreSQL (`n8n_chat_histories`) usando el `session_id` = `Id_Conversacion_Chatwoot`. Elimina toda dependencia del LLM para el resumen.
+
+#### Cambios en subworkflow `K3WrelHxg7k9EePiD5-2S`
+
+| Cambio | Detalle |
+|--------|---------|
+| +Nodo `Obtener historial` (Postgres) | `SELECT message FROM n8n_chat_histories WHERE session_id::text = Id_Conversacion_Chatwoot ORDER BY id ASC LIMIT 20`. Credencial `W0V8Ip8hTUNsQtFx`. `alwaysOutputData: true` |
+| +Nodo `Formatear mensajes` (Code v2) | `runOnceForAllItems`. Parsea JSON de cada mensaje, formatea `Cliente: texto` / `Bot: texto`, últimos 10 mensajes. Fallback: "Sin historial disponible" |
+| Reconexión | Edit Fields → Obtener historial → Formatear mensajes → Send a message |
+| Slack texto | Reemplaza `👤 *Motivo:* {{ Resumen_conversacion }}` por `💬 *Conversación:*\n{{ historial }}` |
+| Trigger simplificado | Eliminado input `Resumen_conversacion` (solo recibe `Id_Conversacion_Chatwoot`) |
+| Edit Fields simplificado | Eliminado field `Resumen_conversacion` |
+
+#### Cambios en workflow principal `s9A9Al67_R0wSQWf_HY3X`
+
+| Nodo | ID | Cambio |
+|------|-----|--------|
+| Contactar Humano | `2964a976-4304-41a8-ba67-703a9f13912b` | Eliminado `Resumen_conversacion` de `workflowInputs.schema` y `value`. Solo envía `Id_Conversacion_Chatwoot` |
+
+#### También eliminado de v1.6.1
+
+El prompt del Agente IA (`b6432bcb`) aún contiene la sección "CÓMO USAR Contactar Humano — RESUMEN OBLIGATORIO" (agregada en v1.6.1). Puede mantenerse (refuerza buen comportamiento) o limpiarse en próxima versión.
+
+---
+
 ## [1.6.1] - 2026-03-26
 
 ### Fix: Resumen Slack solo mostraba último mensaje + preguntas parciales no registradas
