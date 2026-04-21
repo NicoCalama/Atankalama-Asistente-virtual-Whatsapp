@@ -2,6 +2,61 @@
 
 ---
 
+## [v2.0.0] — 2026-03-22
+
+### Escalamiento a 34 hoteles + Segmentación por Tier Competitivo
+
+**Origen**: Excel del equipo de ventas con 32 competidores clasificados en 5 tiers competitivos basados en rango de precio USD.
+
+#### Supabase Schema
+- `hotels_catalog`: +2 columnas (`competitive_tier INTEGER 1-5`, `tier_name TEXT`) + índice `idx_hc_tier`
+- Seed expandido de 7 a 34 hoteles (2 propios + 31 competidores) con URLs verificadas de Booking.com
+- Archivo `migration_v2.0.sql` creado para migración incremental desde v1.x
+- Archivo `schema.sql` actualizado a v2.0.0 (instalación limpia)
+
+#### Workflow A — Scraping Semanal (`QBDVpsKWGTHZZikE`)
+- `maxItems`: 10 → 40 (cubrir 34 hoteles)
+- Removido `propertyType: 'Hotels'` (bloqueaba deptos/hostales en Booking)
+- Removido `search: 'calama'` (innecesario con startUrls explícitas)
+- `waitForFinish`: 55 → 90 segundos
+- Timeout HTTP: 360s → 480s
+- Espera condicional poll: 135s → 180s
+- Dataset limit: 100 → 200
+- Schedule: jueves 6:00 AM → **jueves 3:00 AM** Santiago (más margen)
+
+#### Subworkflow — Análisis y Reporte (`YXDogRLJrprijeiV`) — 21→22 nodos
+- **Nuevo nodo**: "Supabase — Catálogo con tiers" (entre Trigger y Semana actual)
+- **Code — Preparar contexto IA**: reorganiza datos por tier (5 grupos) con promedios por tier y hoteles propios como referencia
+- **Prompt Claude**: análisis POR TIER con `analisis_por_tier[]` (resumen, promedio, competidores destacados, alertas, oportunidades por tier)
+- **HTML report**: secciones coloreadas por tier (Inn1=amarillo, Inn2=naranja, Executive=azul, Premium=índigo, Boutique=púrpura), tabla cambios con columna tier, recomendaciones con tier_referencia
+- Footer actualizado: "34 hoteles • 5 tiers • jueves 3:00 AM"
+
+#### Workflow C — Agente Slack (`TlckRzWvHtO7QPGJ`) — 9→10 nodos
+- **System prompt**: expandido de 7 a 34 hoteles con normalización nombre→slug organizada por tier
+- **Nuevo tool `consultar_por_tier`**: consulta precios de TODOS los hoteles de un tier (1-5) + propios como referencia. Usa `hotels_catalog` para obtener slugs del tier dinámicamente.
+- **Tool `consultar_precios_puntuales`**: descripción actualizada con 33 slugs válidos
+- **Estrategia de consulta**: nueva ruta "pregunta sobre UN TIER" → `consultar_por_tier`
+- Sticky note actualizada a v2.0
+
+#### Tiers Competitivos
+
+| Tier | Segmento | Rango USD | Competidores |
+|------|----------|-----------|-------------|
+| 1 | Inn1 | $25-42 | 6 (Ckayatar, Da Vinci, Oasis Modulares, Hotel Aymara, Jallalla, Oasis Mini Deptos) |
+| 2 | Inn2 | $42-50 | 3 (Hostal Milaris, Hotel Don Alfredo, Hotel Quitor) |
+| 3 | Executive | $50-60 | 4 (2 Torres, Disfruta Logroño, Hermoso depto edificio, Hostal SyR) |
+| 4 | Premium | $60-70 | 3 (914 Hotel, Ayelen Express, ibis budget) |
+| 5 | Boutique | $70+ | 16 (Anexo Quitor, Ayelen Apart, Depto Calama, Depto Central Ejecutivo, Depto galáctico, Dpto 7, Espacio parque, Geotel★, Agua del Desierto★, Diego Almagro x3, Modular Express, ibis Calama★, LRH, Park Hotel★) |
+
+★ = ya rastreados antes de v2.0
+
+#### Costos estimados
+- Apify: ~$2.50/mes → ~$14/mes (34 hoteles)
+- Claude API: ~$0.50/mes → ~$1.25/mes (contexto mayor por tiers)
+- **Total**: ~$15-40/mes
+
+---
+
 ## [v1.3.0] — 2026-03-18
 
 ### Workflow C — Agente inteligente: ventana de tiempo y escalabilidad
@@ -45,7 +100,7 @@ El nodo `toolHttpRequest` v1.1 lanza "Invalid URL" para cualquier URL en esta ve
 **Slack App "Atankalama Mercado"**:
 - Scopes: `chat:write`, `im:history`, `im:read`, `im:write`
 - Events: `message.im` (DMs) + `message.channels` (canales)
-- Credencial n8n: `uKOVvZfS46uT8weR`
+- Credencial n8n: `[CRED-ID-SLACK]`
 
 **Schedule Workflow A**: cambiado a **jueves 6:00 AM** (era lunes — conflicto con reunión semanal de ventas).
 
@@ -59,7 +114,7 @@ El nodo `toolHttpRequest` v1.1 lanza "Invalid URL" para cualquier URL en esta ve
 
 - **Primer reporte enviado exitosamente** ✅ — análisis Claude + HTML + email al equipo
 - **Workflow A modo producción**: quitado `.filter()` en `Code — Build Apify input` → scraping 7 hoteles activos (147 iteraciones/semana: 7 hoteles × 7 días × 3 tipos)
-- **Email destinatarios**: eliminado email de test (`zurk.calameno@gmail.com`), sujeto sin prefijo `[TEST]`
+- **Email destinatarios**: eliminado email de test (`[email-test]`), sujeto sin prefijo `[TEST]`
 - **Fixes de schema** `price_snapshots`: agregadas columnas `analysis`, `html`, `scrape_date`; `snapshot_date DEFAULT CURRENT_DATE`; `summary_json` nullable
 - **Guards Supabase**: `alwaysOutputData: true` en los 3 nodos Supabase del subworkflow — evita corte de cadena con 0 rows
 - **SplitInBatches subworkflow**: corregida conexión `loop` → Gmail (estaba invertida a `done`)
@@ -99,8 +154,8 @@ Resultado: 21 nodos (18 → 21), credenciales todas vinculadas ✅.
 El nodo Supabase v1 nativo pierde la config `fieldsUi` al abrir/guardar en UI → campos quedan null → violación NOT NULL. Tras 5 intentos con variantes del nodo nativo, migrado a HTTP Request directo:
 
 ```
-URL: https://zxzimlqrjnmigblulthg.supabase.co/rest/v1/hotel_prices
-Auth: supabaseApi (bFOo7cpHxcNnPXVD)
+URL: https://[SUPABASE-PROJECT-REF].supabase.co/rest/v1/hotel_prices
+Auth: supabaseApi ([CRED-ID-SUPABASE])
 Body: jsonBody: "={{ $json }}"   ← NO JSON.stringify, causa PGRST204
 Header: Prefer: return=minimal
 ```

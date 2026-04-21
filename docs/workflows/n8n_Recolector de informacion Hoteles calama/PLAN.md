@@ -133,7 +133,7 @@ Hotel Atankalama necesita monitorear semanalmente los precios de la competencia 
 **Objetivo**: Crear las 3 tablas nuevas e insertar el catálogo de hoteles.
 
 **Resultado**: Tablas creadas via Management API (PAT token). Seed de 7 hoteles insertado.
-Proyecto Supabase renombrado a "Atankalama Corp" (ref: `zxzimlqrjnmigblulthg`).
+Proyecto Supabase renombrado a "Atankalama Corp" (ref: `[SUPABASE-PROJECT-REF]`).
 
 ---
 
@@ -243,7 +243,7 @@ Loop de 7 días (D+1 a D+7), todos los hoteles activos (propios + competidores).
 
 **Slack Button** (workflow util separado, `yyaxraPUve3ApgGl` — "[UTIL] Postear Botón Slack"):
 - Manual Trigger → HTTP Request → `https://slack.com/api/chat.postMessage`
-- Canal: `#ventas-atankalama` (`C0ALJN1RYCD`)
+- Canal: `#ventas-atankalama` (`[SLACK-CHANNEL-ID]`)
 - Block Kit: botón link a `[URL protegida — webhook Workflow B]`
 - Ejecutar solo cuando se quiera postear el botón (no automático)
 

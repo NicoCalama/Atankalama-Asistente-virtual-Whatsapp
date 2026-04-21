@@ -6,18 +6,19 @@
 
 | Componente | ID n8n | Estado | Descripción |
 |-----------|--------|--------|-------------|
-| Workflow A | `QBDVpsKWGTHZZikE` | Activo producción (7 hoteles) | Scraping semanal — Loop 147 iteraciones (7 hoteles × 7 días × 3 tipos) |
-| Subworkflow | `YXDogRLJrprijeiV` | Activo producción | Análisis IA + email (21 nodos) |
+| Workflow A | `QBDVpsKWGTHZZikE` | Activo producción (34 hoteles) | Scraping semanal — 21 runs Apify (7 días × 3 tipos), ~34 hoteles por run |
+| Subworkflow | `YXDogRLJrprijeiV` | Activo producción | Análisis IA por tier + email (22 nodos) |
 | Workflow B | `SbI0cfUlQvtLWvxZ` | Activo | Disparador manual (Form Trigger + Execute Workflow A) |
-| Workflow C | `TlckRzWvHtO7QPGJ` | Activo producción | Agente consultor vía Slack DM (bot "Atankalama Mercado") |
+| Workflow C | `TlckRzWvHtO7QPGJ` | Activo producción | Agente consultor vía Slack DM — 4 tools, 34 hoteles, consultas por tier |
 
 ---
 
 ## Workflow A — Scraping Semanal
 
 ```
-Cron: 0 10 * * 4  (Jueves 10:00 UTC = 6:00 AM Santiago)
-PRODUCCIÓN: 7 hoteles activos, 147 iteraciones/semana
+Cron: 0 7 * * 4  (Jueves 07:00 UTC = 3:00 AM Santiago)
+PRODUCCIÓN: 34 hoteles activos, 21 runs Apify/semana (7 días × 3 tipos habitación)
+Cada run envía los 34 hoteles a Apify en un solo batch via startUrls
 ```
 
 ### Flujo
@@ -47,8 +48,8 @@ PRODUCCIÓN: 7 hoteles activos, 147 iteraciones/semana
 **Supabase insert — usar HTTP Request, no nodo nativo v1**:
 El nodo Supabase v1 nativo pierde la config `fieldsUi` al abrir/guardar en UI. Se reemplazó por HTTP POST directo:
 ```
-URL: https://zxzimlqrjnmigblulthg.supabase.co/rest/v1/hotel_prices
-Auth: supabaseApi (bFOo7cpHxcNnPXVD)
+URL: https://[SUPABASE-PROJECT-REF].supabase.co/rest/v1/hotel_prices
+Auth: supabaseApi ([CRED-ID-SUPABASE])
 Body: "={{ $json }}"  ← NO usar JSON.stringify($json), causa error PGRST204
 Header: Prefer: return=minimal
 ```
@@ -57,7 +58,7 @@ Header: Prefer: return=minimal
 
 ---
 
-## Subworkflow — Análisis y Reporte (21 nodos, v2.0)
+## Subworkflow — Análisis y Reporte (22 nodos, v2.0)
 
 ```
 Input: { scrape_date: "YYYY-MM-DD", mode: "scheduled" | "standalone" }
@@ -66,29 +67,33 @@ Input: { scrape_date: "YYYY-MM-DD", mode: "scheduled" | "standalone" }
 ### Flujo con guards
 
 ```
-[Trigger] → [Supabase actual]
+[Trigger] → [Supabase — Catálogo con tiers]  ← NEW v2.0: hotels_catalog (active=true)
+→ [Supabase actual]
 → [Guard1]  ← reduce a 1 item (evita N ejecuciones en downstream)
 → [Supabase anterior]
 → [Guard2]  ← pasa 1 item OR {_guard:true} si vacío (primera ejecución)
 → [Supabase 4sem]
 → [Guard3]  ← ídem
-→ [Code — Preparar contexto IA]  ← lee los 3 Supabase por $('nodo').all()
+→ [Code — Preparar contexto IA]  ← lee catálogo + 3 Supabase, organiza por tier (1-5)
 → [Claude — Análisis Estratégico]  ← Basic LLM Chain + Anthropic sub-nodo
 → [Code — Parsear respuesta Claude]  ← $json.text del chain
-→ [Code — Renderizar HTML]  ← template Gmail inline CSS
+→ [Code — Renderizar HTML]  ← template email con secciones por tier
 → [Supabase — Guardar snapshot]  ← autoMapInputData → price_snapshots
 → [Code — Lista de destinatarios]  ← retorna N items (1 por email)
 → [SplitInBatches] → [Gmail — Enviar reporte] → loop-back
 ```
+
+### Análisis por tier (v2.0)
+El nodo "Code — Preparar contexto IA" organiza los datos en 5 tiers competitivos con hoteles propios como referencia en cada uno. Claude genera `analisis_por_tier` (1 entrada por tier) con alertas, oportunidades y competidores destacados. El HTML renderiza secciones coloreadas por tier.
 
 **Por qué guards**: cada Supabase corre una vez por item recibido. Sin guards, Supabase anterior corría N veces (N = registros de semana actual). Los guards reducen a 1 item para que cada nodo corra exactamente una vez.
 
 **Primera ejecución**: Supabase anterior y 4sem devuelven 0 items. Los guards insertan `{_guard:true}` para no cortar la cadena. Code contexto filtra `_guard` y maneja arrays vacíos con gracia.
 
 ### Credenciales vinculadas
-- Anthropic: `nY5IaQTAreX8ULxT` ("Anthropic account") ✅
-- Gmail: `tRN6oegZdk974irw` ("Gmail account") ✅
-- Supabase: `bFOo7cpHxcNnPXVD` ("Supabase account") ✅
+- Anthropic: `[CRED-ID-ANTHROPIC]` ("Anthropic account") ✅
+- Gmail: `[CRED-ID-GMAIL]` ("Gmail account") ✅
+- Supabase: `[CRED-ID-SUPABASE]` ("Supabase account") ✅
 
 ---
 
@@ -111,7 +116,7 @@ Input: { scrape_date: "YYYY-MM-DD", mode: "scheduled" | "standalone" }
 
 ## Workflow C — Agente Slack DM
 
-**Estado**: Activo producción | **ID**: `TlckRzWvHtO7QPGJ` | 9 nodos
+**Estado**: Activo producción | **ID**: `TlckRzWvHtO7QPGJ` | 10 nodos
 
 ### Flujo
 
@@ -120,8 +125,9 @@ Input: { scrape_date: "YYYY-MM-DD", mode: "scheduled" | "standalone" }
       ↓
 [IF — Anti-loop]  $json.bot_id → Is Empty
       ↓ TRUE
-[AI Agent — claude-sonnet-4-6]
+[AI Agent — claude-haiku-4-5]
       |── Tool Code: consultar_precios_puntuales   → hotel_prices (hotel + fecha)
+      |── Tool Code: consultar_por_tier            → NEW v2.0: catalog + precios por tier (1-5)
       |── Tool Code: consultar_tendencia_historica → hotel_prices (N semanas)
       └── Tool Code: get_ultimo_snapshot           → price_snapshots DESC LIMIT 1
       ↓
@@ -145,34 +151,43 @@ Input: { scrape_date: "YYYY-MM-DD", mode: "scheduled" | "standalone" }
 - `message.im` — DMs entrantes
 - `message.channels` — mensajes en canales donde el bot fue invitado
 
-### System Prompt del Agente
+### System Prompt del Agente (v2.0)
 
 ```
-Eres un asistente de inteligencia de mercado hotelero para Hotel Atankalama.
-Respondes consultas sobre precios de la competencia en Calama, Chile.
-Hoteles: Atankalama, Atankalama Inn, Geotel Calama, Park Hotel Calama,
-Ibis Calama, ibis budget Calama, Hotel Agua del Desierto.
-Tipos: Doble, Triple, Cuádruple. Precios en CLP.
-Usa tus herramientas para responder con datos reales.
-Si el dato no existe, indícalo claramente. Responde siempre en español.
+34 hoteles organizados en 5 tiers competitivos.
+Normalización nombre→slug para los 34 hoteles.
+Estrategia de consulta: hotel individual, por tier, resumen general, tendencia.
+Atankalama Inn compite vs Tiers 1-2, Hotel Atankalama compite vs Tiers 3-5.
 ```
+
+### Tiers Competitivos
+
+| Tier | Segmento | Rango USD | Hoteles |
+|------|----------|-----------|---------|
+| 1 | Inn1 | $25-42 | 6 competidores |
+| 2 | Inn2 | $42-50 | 3 competidores |
+| 3 | Executive | $50-60 | 4 competidores |
+| 4 | Premium | $60-70 | 3 competidores |
+| 5 | Boutique | $70+ | 16 competidores |
+| **Total** | | | **32 competidores + 2 propios = 34** |
+| — | Propios | — | Atankalama, Atankalama Inn |
 
 ### Credenciales
 
-- Anthropic: `nY5IaQTAreX8ULxT` ("Anthropic account") ✅
-- Supabase: `bFOo7cpHxcNnPXVD` ("Supabase account") ✅
-- Slack: `uKOVvZfS46uT8weR` ("Atankalama Mercado") ✅
+- Anthropic: `[CRED-ID-ANTHROPIC]` ("Anthropic account") ✅
+- Supabase: `[CRED-ID-SUPABASE]` ("Supabase account") ✅
+- Slack: `[CRED-ID-SLACK]` ("Atankalama Mercado") ✅
 
 ---
 
 ## Supabase — Tablas del Recolector
 
-**Proyecto**: "Atankalama Corp" | **ref**: `zxzimlqrjnmigblulthg`
-**Credencial n8n**: `bFOo7cpHxcNnPXVD` ("Supabase account") — la misma para todos los proyectos
+**Proyecto**: "Atankalama Corp" | **ref**: `[SUPABASE-PROJECT-REF]`
+**Credencial n8n**: `[CRED-ID-SUPABASE]` ("Supabase account") — la misma para todos los proyectos
 
 | Tabla | Contenido |
 |-------|-----------|
-| `hotels_catalog` | 7 hoteles seed (2 propios + 5 competidores), campo `active`, `is_own_hotel`, `booking_url_base` |
+| `hotels_catalog` | 34 hoteles (2 propios + 31 competidores), campos: `active`, `is_own_hotel`, `booking_url_base`, `competitive_tier` (1-5), `tier_name` |
 | `hotel_prices` | Precios scrapeados. Campos: `hotel_slug`, `room_type`, `check_in_date`, `price_clp` (INTEGER), `availability`, `scrape_date`, `is_own_hotel`, `raw_data` (JSONB) |
 | `price_snapshots` | Análisis IA pre-computado por semana. Consultado por Workflow C para evitar re-invocar Claude |
 
@@ -182,12 +197,12 @@ Si el dato no existe, indícalo claramente. Responde siempre en español.
 
 | Servicio | Credencial n8n | Notas |
 |---------|---------------|-------|
-| Apify | `K8yYXG645t1B1ufI` | Actor: `voyager~booking-scraper` |
-| Supabase | `bFOo7cpHxcNnPXVD` | REST API + nodo nativo |
-| Anthropic | `nY5IaQTAreX8ULxT` | LangChain sub-nodo |
-| Gmail | `tRN6oegZdk974irw` | OAuth2 [email operaciones] |
-| Slack | `uKOVvZfS46uT8weR` | Bot "Atankalama Mercado" — Workflow C ✅ |
+| Apify | `[CRED-ID-APIFY]` | Actor: `voyager~booking-scraper` |
+| Supabase | `[CRED-ID-SUPABASE]` | REST API + nodo nativo |
+| Anthropic | `[CRED-ID-ANTHROPIC]` | LangChain sub-nodo |
+| Gmail | `[CRED-ID-GMAIL]` | OAuth2 [email operaciones] |
+| Slack | `[CRED-ID-SLACK]` | Bot "Atankalama Mercado" — Workflow C ✅ |
 
 ---
 
-**Última actualización**: 16 de Marzo 2026 (Workflow C activo en producción)
+**Última actualización**: 22 de Marzo 2026 (v2.0 — 34 hoteles, 5 tiers competitivos)
